@@ -15738,6 +15738,20 @@ class L10nEn extends L10n {
   String get remoteRestoreServer => 'Restore default server dsh.r2049.cn';
 
   @override
+  String get remoteAddServer => 'Add server';
+
+  @override
+  String get remoteForgetServer => 'Remove from list';
+
+  @override
+  String get remoteServerHosted => 'Hosted';
+
+  @override
+  String remoteLastAccount(String account) {
+    return 'Last used $account';
+  }
+
+  @override
   String get remoteConsole => 'Remote console';
 
   @override

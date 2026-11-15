@@ -590,6 +590,19 @@
   "remoteEmail": "邮箱",
   "remotePassword": "密码",
   "remoteRestoreServer": "改回默认服务器 dsh.r2049.cn",
+  "remoteAddServer": "添加服务器",
+  "remoteForgetServer": "从列表移除",
+  "remoteServerHosted": "官方托管",
+  "@remoteLastAccount": {
+    "description": "Helper under the email field when a saved server was last used with a known account.",
+    "placeholders": {
+      "account": {
+        "type": "String",
+        "example": "me@example.com"
+      }
+    }
+  },
+  "remoteLastAccount": "上次使用 {account}",
   "remoteConsole": "远程控制台",
   "remoteHostsIntro": "在手机上接着用电脑或服务器上的 DSH",
   "remoteSshHosts": "SSH 主机",

@@ -27380,6 +27380,30 @@ abstract class L10n {
   /// **'改回默认服务器 dsh.r2049.cn'**
   String get remoteRestoreServer;
 
+  /// No description provided for @remoteAddServer.
+  ///
+  /// In zh, this message translates to:
+  /// **'添加服务器'**
+  String get remoteAddServer;
+
+  /// No description provided for @remoteForgetServer.
+  ///
+  /// In zh, this message translates to:
+  /// **'从列表移除'**
+  String get remoteForgetServer;
+
+  /// No description provided for @remoteServerHosted.
+  ///
+  /// In zh, this message translates to:
+  /// **'官方托管'**
+  String get remoteServerHosted;
+
+  /// Helper under the email field when a saved server was last used with a known account.
+  ///
+  /// In zh, this message translates to:
+  /// **'上次使用 {account}'**
+  String remoteLastAccount(String account);
+
   /// No description provided for @remoteConsole.
   ///
   /// In zh, this message translates to:

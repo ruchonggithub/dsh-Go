@@ -14982,6 +14982,20 @@ class L10nZh extends L10n {
   String get remoteRestoreServer => '改回默认服务器 dsh.r2049.cn';
 
   @override
+  String get remoteAddServer => '添加服务器';
+
+  @override
+  String get remoteForgetServer => '从列表移除';
+
+  @override
+  String get remoteServerHosted => '官方托管';
+
+  @override
+  String remoteLastAccount(String account) {
+    return '上次使用 $account';
+  }
+
+  @override
   String get remoteConsole => '远程控制台';
 
   @override

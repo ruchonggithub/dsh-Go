@@ -247,6 +247,19 @@
   "remoteEmail": "Email",
   "remotePassword": "Password",
   "remoteRestoreServer": "Restore default server dsh.r2049.cn",
+  "remoteAddServer": "Add server",
+  "remoteForgetServer": "Remove from list",
+  "remoteServerHosted": "Hosted",
+  "@remoteLastAccount": {
+    "description": "Helper under the email field when a saved server was last used with a known account.",
+    "placeholders": {
+      "account": {
+        "type": "String",
+        "example": "me@example.com"
+      }
+    }
+  },
+  "remoteLastAccount": "Last used {account}",
   "remoteConsole": "Remote console",
   "remoteHostsIntro": "Keep using DSH from your computer or server on your phone",
   "remoteSshHosts": "SSH hosts",

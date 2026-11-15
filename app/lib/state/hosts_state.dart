@@ -14,6 +14,7 @@ import '../remote/relay/webrtc_peer.dart';
 import '../remote/secret_store.dart';
 import '../remote/ssh/ssh_host_config.dart';
 import '../remote/ssh/ssh_transport.dart';
+import 'relay_server_entry.dart';
 import 'sessions_state.dart';
 import 'read_list_epoch.dart';
 
@@ -177,7 +178,10 @@ class HostsController extends Notifier<HostsState> {
       }
     }
 
-    await put(SshSecrets.attachTokenKey(id), config.dshMode == SshDshMode.attachOnly ? secrets.attachToken?.trim() : null);
+    await put(
+      SshSecrets.attachTokenKey(id),
+      config.dshMode == SshDshMode.attachOnly ? secrets.attachToken?.trim() : null,
+    );
     if (config.auth == SshAuthMethod.password) {
       await put(SshSecrets.passwordKey(id), secrets.password);
       await _secrets.delete(SshSecrets.privateKeyKey(id));
@@ -210,7 +214,12 @@ class HostsController extends Notifier<HostsState> {
   Future<void> removeSsh(String id) async {
     await _loaded;
     await _persist([...state.ssh.where((h) => h.id != id)]);
-    for (final key in [SshSecrets.passwordKey(id), SshSecrets.privateKeyKey(id), SshSecrets.passphraseKey(id), SshSecrets.attachTokenKey(id)]) {
+    for (final key in [
+      SshSecrets.passwordKey(id),
+      SshSecrets.privateKeyKey(id),
+      SshSecrets.passphraseKey(id),
+      SshSecrets.attachTokenKey(id),
+    ]) {
       try {
         await _secrets.delete(key);
       } catch (_) {}
@@ -368,10 +377,120 @@ final activeHostProvider = NotifierProvider<ActiveHostController, HostRef>(Activ
 
 // ── DSH Remote (relay) account ───────────────────────────────────────────────
 
+/// The saved DSH Remote servers, most recently used first.
+///
+/// Each server keeps its own sign-in: `packages/dsh_remote` derives its
+/// credential scope from a hash of the origin, so the credentials for every
+/// server already coexist on disk. This list is what makes them reachable
+/// again without retyping an address.
+class RelayServersController extends Notifier<List<RelayServerEntry>> {
+  static const prefsKey = 'remote_relay_servers';
+
+  /// Written by earlier versions that stored only the one selected server.
+  /// Read once to seed the list so nobody loses the server they were on.
+  static const legacyKey = 'remote_relay_server';
+
+  bool _touched = false;
+  late Future<void> _loaded;
+
+  @override
+  List<RelayServerEntry> build() {
+    _loaded = _restore();
+    return const [];
+  }
+
+  /// The saved list has been read; writes wait for it so an early save cannot
+  /// drop what is already on disk.
+  Future<void> get ready => _loaded;
+
+  Future<void> _restore() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      var entries = RelayServerEntry.decodeList(prefs.getString(prefsKey));
+      if (entries.isEmpty) entries = _migrateLegacy(prefs);
+      if (!_touched && entries.isNotEmpty) state = entries;
+    } catch (_) {}
+  }
+
+  /// A stored selection from before the list existed becomes its only entry.
+  List<RelayServerEntry> _migrateLegacy(SharedPreferences prefs) {
+    final legacy = prefs.getString(legacyKey);
+    if (legacy == null || legacy.isEmpty) return const [];
+    return [RelayServerEntry(origin: legacy, lastUsed: DateTime.now())];
+  }
+
+  Future<void> _persist(List<RelayServerEntry> entries) async {
+    _touched = true;
+    state = entries;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(prefsKey, RelayServerEntry.encodeList(entries));
+      // The list supersedes the single-value key; keeping it would resurrect a
+      // removed server on the next migration.
+      if (prefs.containsKey(legacyKey)) await prefs.remove(legacyKey);
+    } catch (_) {}
+  }
+
+  /// Adds [entry], or refreshes the one already saved for its origin, and
+  /// moves it to the front.
+  Future<void> remember(String origin, {String? label, String? account, String? Function()? accountUpdate}) async {
+    await _loaded;
+    final now = DateTime.now();
+    final existing = state.where((e) => e.origin == origin).firstOrNull;
+    final trimmed = label?.trim();
+    final entry = (existing ?? RelayServerEntry(origin: origin)).copyWith(
+      // Omitting a label keeps the saved one; typing a blank one clears it.
+      label: label == null ? RelayServerEntry.clearLabel : ((trimmed?.isEmpty ?? true) ? null : trimmed),
+      account: accountUpdate ?? (() => account ?? existing?.account),
+      lastUsed: now,
+    );
+    await _persist([entry, ...state.where((e) => e.origin != origin)]);
+  }
+
+  /// Records the account signed in at [origin], keeping the list order.
+  Future<void> noteAccount(String origin, String? account) async {
+    await _loaded;
+    final existing = state.where((e) => e.origin == origin).firstOrNull;
+    if (existing == null) {
+      if (account == null || account.isEmpty) return;
+      await remember(origin, account: account);
+      return;
+    }
+    if (existing.account == account) return;
+    await _persist([for (final e in state) e.origin == origin ? e.copyWith(account: () => account) : e]);
+  }
+
+  /// Sets the display name for [origin]; a blank [label] removes it.
+  Future<void> rename(String origin, String? label) async {
+    await _loaded;
+    final trimmed = label?.trim();
+    if (state.every((e) => e.origin != origin)) return;
+    final next = (trimmed?.isEmpty ?? true) ? null : trimmed;
+    await _persist([
+      // `next` is null when clearing, which copyWith reads as "clear" only
+      // through the sentinel-aware overload below.
+      for (final e in state) e.origin == origin ? e.withLabel(next) : e,
+    ]);
+  }
+
+  /// Forgets [origin]. Its credentials stay in secure storage — dropping the
+  /// row only hides the shortcut, and signing in again is enough to restore it.
+  Future<void> forget(String origin) async {
+    await _loaded;
+    if (state.every((e) => e.origin != origin)) return;
+    await _persist([...state.where((e) => e.origin != origin)]);
+  }
+
+  RelayServerEntry? entryFor(String? origin) {
+    if (origin == null) return null;
+    return state.where((e) => e.origin == origin).firstOrNull;
+  }
+}
+
 /// The DSH Remote server: null for the hosted dsh.r2049.cn, else a
 /// self-hosted origin with its own sign-in methods.
 class RelayServerController extends Notifier<String?> {
-  static const prefsKey = 'remote_relay_server';
+  static const prefsKey = RelayServersController.legacyKey;
   bool _touched = false;
 
   @override
@@ -411,6 +530,10 @@ class RelayServerController extends Notifier<String?> {
   Future<void> loginWithPassword({required String server, required String email, required String password}) =>
       ref.read(_relayServerActionsProvider).loginWithPassword(server: server, email: email, password: password);
 }
+
+final relayServersProvider = NotifierProvider<RelayServersController, List<RelayServerEntry>>(
+  RelayServersController.new,
+);
 
 // Commands need their own Ref: the backend watches the server state, so the
 // server notifier cannot read/invalidate its downstream providers. This provider
