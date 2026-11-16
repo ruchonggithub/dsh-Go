@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../links/removed_links.dart' show hostedRelayServerEnabled;
 import '../../l10n/l10n.dart';
 import '../../remote/relay/relay_backend.dart';
 import '../../runtime/local_footprint.dart';
@@ -130,18 +131,21 @@ class RemoteScreen extends ConsumerWidget {
             ),
           ],
         ),
-        SettingsSection(
-          title: l10n.remoteOtherMethods,
-          children: [
-            SettingsTile(
-              icon: AppIcons.webConsole,
-              tinted: false,
-              title: l10n.remoteWebConsole,
-              subtitle: l10n.remoteWebConsoleProvider,
-              onTap: () => _openConsole(context),
-            ),
-          ],
-        ),
+        // The hosted web console is off in this build (removed_links.dart):
+        // it loads dsh.r2049.cn in a WebView with no way around it.
+        if (hostedRelayServerEnabled)
+          SettingsSection(
+            title: l10n.remoteOtherMethods,
+            children: [
+              SettingsTile(
+                icon: AppIcons.webConsole,
+                tinted: false,
+                title: l10n.remoteWebConsole,
+                subtitle: l10n.remoteWebConsoleProvider,
+                onTap: () => _openConsole(context),
+              ),
+            ],
+          ),
         // Only meaningful once there is a host to come back to.
         if (ssh.isNotEmpty || signedIn)
           SettingsSection(
@@ -228,7 +232,7 @@ class _ActiveCard extends ConsumerWidget {
                             final backend = ref.read(relayBackendProvider);
                             final signedIn = await showSelfHostedLogin(
                               context,
-                              initialServer: ref.read(relayServerProvider) ?? defaultRelayServer,
+                              initialServer: resolveRelayServer(ref.read(relayServerProvider)),
                             );
                             if (signedIn == true &&
                                 context.mounted &&

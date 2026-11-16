@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../links/removed_links.dart' show forumEnabled;
 import '../../l10n/l10n.dart';
 import '../../runtime/local_footprint.dart';
 import '../../runtime/runtime_state.dart';
@@ -300,12 +301,14 @@ class SettingsScreen extends ConsumerWidget {
                 value: Text(l10n.askAiTooltip),
                 onTap: () => unawaited(askAi(context, AskAiTopic.overview)),
               ),
-            SettingsTile(
-              icon: AppIcons.community,
-              tint: SettingsHues.help,
-              spot: Spots.community,
-              onTap: () => _push(context, communityPage()),
-            ),
+            // Off in this build: the community page is the way into the forum.
+            if (forumEnabled)
+              SettingsTile(
+                icon: AppIcons.community,
+                tint: SettingsHues.help,
+                spot: Spots.community,
+                onTap: () => _push(context, communityPage()),
+              ),
             SettingsTile(
               icon: AppIcons.diagnostics,
               tint: SettingsHues.help,

@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import '../links/removed_links.dart' show hostedRelayServerEnabled;
+
 /// Marker type for [RelayServerEntry.copyWith]'s `label` argument.
 ///
 /// Two `const Object()` values are canonicalized to the same instance, so
@@ -51,7 +53,10 @@ class RelayServerEntry {
 
   final DateTime? lastUsed;
 
-  bool get isDefault => origin == defaultRelayServerOrigin;
+  /// Whether this is the hosted server. Always false in a build that does not
+  /// offer it ([hostedRelayServerEnabled]); the address still parses, so an
+  /// entry saved by another build is not misread.
+  bool get isDefault => hostedRelayServerEnabled && origin == defaultRelayServerOrigin;
 
   /// The address without its scheme, for compact rows.
   String get hostLabel {

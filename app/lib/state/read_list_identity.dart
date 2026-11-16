@@ -226,7 +226,10 @@ final readListIdentityProvider = Provider<ReadListIdentity?>((ref) {
           host.fingerprint!.trim().isEmpty) {
         return null;
       }
-      final server = ref.watch(relayServerProvider) ?? defaultRelayServer;
+      // No server selected means no identity to describe in a build that does
+      // not offer the hosted one; see resolveRelayServer.
+      final server = resolveRelayServer(ref.watch(relayServerProvider));
+      if (server == null) return null;
       if (server.length > 4096 ||
           state.user!.id.length > 256 ||
           host.id.length > 256 ||

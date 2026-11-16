@@ -9,6 +9,7 @@ import 'package:dsh_client/dsh_client.dart' show PluginBundle;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../links/removed_links.dart' show forumEnabled;
 import '../../l10n/l10n.dart';
 import '../../plugins/native/native_icons.dart';
 import '../../plugins/native/native_state.dart';
@@ -321,21 +322,25 @@ final featureSections = <FeatureSection>[
     ),
   ]),
   FeatureSection.localized((l10n) => l10n.catalogCommunitySharingSection, [
-    FeatureItem.localized(
-      id: 'forum',
-      title: (l10n) => l10n.catalogForum,
-      summary: (l10n) => l10n.catalogForumSummary,
-      icon: AppIcons.forum,
-      native: (_) => const ForumHomePage(),
-    ),
-    FeatureItem.localized(
-      id: 'community',
-      title: (l10n) => l10n.catalogCommunity,
-      summary: (l10n) => l10n.catalogCommunitySummary,
-      icon: AppIcons.community,
-      tile: FeatureKind.community,
-      native: (_) => communityPage(),
-    ),
+    // The forum and the community page that fronts it are off in this build
+    // (removed_links.dart): both exist to reach forum.dshtui.com.
+    if (forumEnabled)
+      FeatureItem.localized(
+        id: 'forum',
+        title: (l10n) => l10n.catalogForum,
+        summary: (l10n) => l10n.catalogForumSummary,
+        icon: AppIcons.forum,
+        native: (_) => const ForumHomePage(),
+      ),
+    if (forumEnabled)
+      FeatureItem.localized(
+        id: 'community',
+        title: (l10n) => l10n.catalogCommunity,
+        summary: (l10n) => l10n.catalogCommunitySummary,
+        icon: AppIcons.community,
+        tile: FeatureKind.community,
+        native: (_) => communityPage(),
+      ),
     FeatureItem.localized(
       id: 'ds-bot',
       title: (_) => 'DS Bot',

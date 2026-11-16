@@ -20,6 +20,8 @@
 ///   replaces the public GitHub accelerator list (empty string = none).
 library;
 
+import '../links/removed_links.dart' show projectUpdateHostsEnabled;
+
 /// GitHub repository the releases live in.
 const updateRepo = 'ccch1mneyyy/dsh-go';
 
@@ -145,18 +147,25 @@ const publicMirrors = [
 ];
 
 const _unset = '\u0000';
-const _mirrorDefine = String.fromEnvironment('DSH_UPDATE_MIRROR', defaultValue: updateDownloadOrigin);
+const _mirrorDefine = String.fromEnvironment('DSH_UPDATE_MIRROR', defaultValue: _unset);
 const _feedDefine = String.fromEnvironment('DSH_UPDATE_FEED', defaultValue: _unset);
 const _mirrorsDefine = String.fromEnvironment('DSH_UPDATE_MIRRORS', defaultValue: _unset);
 const _betaTokenDefine = String.fromEnvironment('DSH_BETA_CHANNEL_TOKEN');
 const _betaOriginDefine = String.fromEnvironment('DSH_BETA_CHANNEL_ORIGIN', defaultValue: updateMirrorOrigin);
 
-/// The configuration the app ships with (see the library comment for overrides).
+/// The configuration the app ships with.
+///
+/// This build is the upstream client with its third-party links removed (see
+/// `app/lib/links/removed_links.dart`). Updates come from GitHub releases only:
+/// the project's own copy at [updateDownloadOrigin], its beta channel and the
+/// public GitHub accelerators are all off. The code that drives them stays, so
+/// a build can turn any of them back on with the defines above — an explicit
+/// define still overrides this default.
 UpdateSources defaultUpdateSources() => buildUpdateSources(
-  mirror: _mirrorDefine,
-  feed: _feedDefine == _unset ? null : _feedDefine,
-  accelerators: _mirrorsDefine == _unset ? null : _mirrorsDefine,
-  channelToken: _betaTokenDefine,
+  mirror: projectUpdateHostsEnabled ? (_mirrorDefine == _unset ? updateDownloadOrigin : _mirrorDefine) : '',
+  feed: projectUpdateHostsEnabled ? (_feedDefine == _unset ? null : _feedDefine) : '',
+  accelerators: projectUpdateHostsEnabled ? (_mirrorsDefine == _unset ? null : _mirrorsDefine) : '',
+  channelToken: projectUpdateHostsEnabled ? _betaTokenDefine : '',
   channelOrigin: _betaOriginDefine,
 );
 

@@ -14,6 +14,7 @@ import '../remote/relay/webrtc_peer.dart';
 import '../remote/secret_store.dart';
 import '../remote/ssh/ssh_host_config.dart';
 import '../remote/ssh/ssh_transport.dart';
+import '../links/removed_links.dart' show hostedRelayServerEnabled;
 import 'relay_server_entry.dart';
 import 'sessions_state.dart';
 import 'read_list_epoch.dart';
@@ -518,7 +519,8 @@ class RelayServerController extends Notifier<String?> {
     } catch (_) {}
   }
 
-  /// Back to dsh.r2049.cn (each server keeps its own sign-in).
+  /// Back to the hosted server, or — in a build that does not offer it — to no
+  /// server at all. Each Server keeps its own sign-in either way.
   Future<void> useDefault() => ref.read(_relayServerActionsProvider).useDefault();
 
   /// Switches to [server] after the person selects it or agrees to a pairing code;
@@ -534,6 +536,15 @@ class RelayServerController extends Notifier<String?> {
 final relayServersProvider = NotifierProvider<RelayServersController, List<RelayServerEntry>>(
   RelayServersController.new,
 );
+
+/// The server a Remote call should go to, or null when there is nowhere to go.
+///
+/// The selection is nullable because the hosted server is the "nothing chosen"
+/// case upstream. This build does not offer that server
+/// ([hostedRelayServerEnabled]), so a null selection means unsigned-up rather
+/// than "use dsh.r2049.cn" — callers must not silently substitute it.
+String? resolveRelayServer(String? selection) =>
+    selection ?? (hostedRelayServerEnabled ? defaultRelayServer : null);
 
 // Commands need their own Ref: the backend watches the server state, so the
 // server notifier cannot read/invalidate its downstream providers. This provider
