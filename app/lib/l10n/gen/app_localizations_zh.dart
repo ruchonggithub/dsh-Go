@@ -14991,6 +14991,9 @@ class L10nZh extends L10n {
   String get remoteAddAccountHere => '在此服务器添加账号';
 
   @override
+  String get remoteAddAccount => '添加账号';
+
+  @override
   String get remoteAccountMissing => '需要重新登录';
 
   @override

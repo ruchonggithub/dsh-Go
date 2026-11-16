@@ -15747,6 +15747,9 @@ class L10nEn extends L10n {
   String get remoteAddAccountHere => 'Add an account on this server';
 
   @override
+  String get remoteAddAccount => 'Add account';
+
+  @override
   String get remoteAccountMissing => 'Sign in again';
 
   @override

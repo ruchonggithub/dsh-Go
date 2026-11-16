@@ -250,6 +250,7 @@
   "remoteSignedInAccounts": "Signed-in accounts",
   "remoteEmailIsAccount": "A server can hold several accounts, each signed in separately",
   "remoteAddAccountHere": "Add an account on this server",
+  "remoteAddAccount": "Add account",
   "remoteAccountMissing": "Sign in again",
   "remoteAddServer": "Add server",
   "remoteForgetServer": "Remove from list",

@@ -27398,6 +27398,12 @@ abstract class L10n {
   /// **'在此服务器添加账号'**
   String get remoteAddAccountHere;
 
+  /// No description provided for @remoteAddAccount.
+  ///
+  /// In zh, this message translates to:
+  /// **'添加账号'**
+  String get remoteAddAccount;
+
   /// No description provided for @remoteAccountMissing.
   ///
   /// In zh, this message translates to:
