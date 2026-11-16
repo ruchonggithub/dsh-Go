@@ -276,11 +276,20 @@ void main() {
   });
 
   group('server url', () {
-    test('normalizes origins and refuses plain HTTP to public hosts', () {
+    test('normalizes origins; http is allowed for any host the person names', () {
       expect(normalizeServerUrl('dsh.r2049.cn/').toString(), 'https://dsh.r2049.cn');
       expect(normalizeServerUrl('http://127.0.0.1:8080').toString(), 'http://127.0.0.1:8080');
-      expect(() => normalizeServerUrl('http://example.com'), throwsArgumentError);
+      // A self-hosted server on a LAN may be plain HTTP: refusing it would
+      // leave the person running it with no way in.
+      expect(normalizeServerUrl('http://example.com').toString(), 'http://example.com');
+      expect(normalizeServerUrl('http://192.168.1.10:3080').toString(), 'http://192.168.1.10:3080');
+      expect(
+        controlSocketUrl(normalizeServerUrl('http://example.com')).toString(),
+        'ws://example.com/ws/v1/connect',
+      );
+      // Still a bare origin, and still http(s) only.
       expect(() => normalizeServerUrl('https://example.com/app'), throwsArgumentError);
+      expect(() => normalizeServerUrl('ftp://example.com'), throwsArgumentError);
       expect(
         controlSocketUrl(normalizeServerUrl('https://dsh.r2049.cn')).toString(),
         'wss://dsh.r2049.cn/ws/v1/connect',

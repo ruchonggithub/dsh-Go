@@ -93,7 +93,9 @@ void main() {
     test('server addresses normalize to an origin; bad ones explain themselves', () {
       expect(DshRemoteRelayBackend.normalizeServer('remote.example.com/'), 'https://remote.example.com');
       expect(DshRemoteRelayBackend.normalizeServer('http://192.168.1.5:8080'), 'http://192.168.1.5:8080');
-      expect(() => DshRemoteRelayBackend.normalizeServer('http://example.com'), throwsA(isA<HostLinkError>()));
+      // Plain HTTP is the person's call: a self-hosted server on a LAN is
+      // commonly not behind TLS, and refusing it leaves them no way in.
+      expect(DshRemoteRelayBackend.normalizeServer('http://example.com'), 'http://example.com');
       expect(() => DshRemoteRelayBackend.normalizeServer('https://x.com/path'), throwsA(isA<HostLinkError>()));
     });
 

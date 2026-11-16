@@ -115,7 +115,7 @@ void main() {
     expect(f.backends.values.expand((backend) => backend.passwordLogins), isEmpty);
   });
 
-  for (final server in ['', 'http://public.example.com', 'https://relay.example.com/path']) {
+  for (final server in ['', 'ftp://relay.example.com', 'https://relay.example.com/path']) {
     testWidgets('server selection rejects invalid origin "$server" without changing selection', (tester) async {
       final f = await _open(tester);
       await _choose(tester, server);

@@ -225,7 +225,9 @@ void main() {
     await frames(tester, 3);
     await tester.tap(find.text('自建服务器 · 邮箱登录'));
     await frames(tester);
-    await tester.enterText(find.byType(TextField).at(0), 'http://public.example.com');
+    // A scheme that is neither http nor https is the remaining invalid shape:
+    // plain HTTP is accepted, since a LAN server may not be behind TLS.
+    await tester.enterText(find.byType(TextField).at(0), 'ftp://public.example.com');
     await tester.enterText(find.byType(TextField).at(1), 'me@example.com');
     await tester.enterText(find.byType(TextField).at(2), 'pw');
     await tester.tap(find.widgetWithText(FilledButton, '登录'));

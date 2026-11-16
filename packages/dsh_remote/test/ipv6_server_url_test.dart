@@ -52,8 +52,13 @@ void main() {
       '100.128.0.1',
       'example.com',
     ]) {
-      test('rejects HTTP for $host but accepts HTTPS', () {
-        expect(() => normalizeServerUrl('http://$host:8080'), throwsArgumentError);
+      test('accepts HTTP and HTTPS for $host', () {
+        // A self-hosted server on a LAN is commonly plain HTTP; only a scheme
+        // that is neither http nor https is refused.
+        final plain = normalizeServerUrl('http://$host:8080');
+        expect(plain.scheme, 'http');
+        expect(plain.port, 8080);
+        expect(controlSocketUrl(plain).scheme, 'ws');
         final secure = normalizeServerUrl('https://$host:8443');
         expect(secure.scheme, 'https');
         expect(secure.port, 8443);

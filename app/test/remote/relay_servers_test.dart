@@ -74,6 +74,20 @@ void main() {
       expect(const RelayServerEntry(origin: 'https://self.example.com').isDefault, isFalse);
     });
 
+    test('a plain-HTTP self-hosted server is an ordinary entry', () {
+      // A LAN server usually has no certificate; it must be usable, not a
+      // second-class value that some check silently rejects.
+      final entry = RelayServerEntry.decodeList(
+        jsonEncode([
+          {'origin': 'http://192.168.1.10:3080', 'account': 'me@example.com'},
+        ]),
+      ).single;
+      expect(entry.origin, 'http://192.168.1.10:3080');
+      expect(entry.hostLabel, '192.168.1.10:3080');
+      expect(entry.isDefault, isFalse);
+      expect(RelayServerEntry.fromJson(jsonDecode(jsonEncode(entry.toJson())))!.origin, entry.origin);
+    });
+
     test('withLabel sets, clears and tolerates blank input', () {
       const bare = RelayServerEntry(origin: 'https://a.example.com');
       expect(bare.withLabel('公司').label, '公司');

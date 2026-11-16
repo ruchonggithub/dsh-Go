@@ -26,35 +26,47 @@ Uri normalizeServerUrl(Object input) {
   if (uri.userInfo.isNotEmpty || uri.hasQuery || uri.hasFragment || (uri.path.isNotEmpty && uri.path != '/')) {
     throw ArgumentError.value(input, 'serverUrl', 'must be a bare origin');
   }
+  // HTTPS is the default when no scheme is typed, but a self-hosted server on
+  // a LAN is commonly plain HTTP and must not be refused: the person running
+  // it decides, and blocking it only leaves them without a way in. The
+  // transport still follows the scheme it was given (ws for http).
   final scheme = uri.scheme.toLowerCase();
-  if (scheme != 'https' && !(scheme == 'http' && _isPrivateHost(uri.host))) {
-    throw ArgumentError.value(input, 'serverUrl', 'must use HTTPS (HTTP only for local/private hosts)');
+  if (scheme != 'https' && scheme != 'http') {
+    throw ArgumentError.value(input, 'serverUrl', 'must be an http or https origin');
+  }
+  if (uri.host.isEmpty || !_isPlausibleHost(uri.host)) {
+    throw ArgumentError.value(input, 'serverUrl', 'must name a valid host');
   }
   return Uri(scheme: scheme, host: uri.host, port: uri.hasPort ? uri.port : null);
 }
 
-bool _isPrivateHost(String host) {
-  // Uri.host keeps brackets around IPv6 literals; parse bytes rather than
-  // prefixes so expanded, compressed and uppercase spellings agree.
+/// Whether [host] is a name or an IP literal that can actually be dialled.
+///
+/// `Uri.parse` accepts `10.0.0.256` and `127.0.999.1` as hosts because it does
+/// not validate dotted-quad ranges. Those would fail at connect time with a
+/// confusing transport error, so they are refused here instead.
+bool _isPlausibleHost(String host) {
   final literal = host.startsWith('[') && host.endsWith(']') ? host.substring(1, host.length - 1) : host;
-  final address = InternetAddress.tryParse(literal);
-  if (address == null) {
-    return host == 'localhost' || host.endsWith('.local') || host.endsWith('.test') || host.endsWith('.localhost');
+  // A dotted-quad spelling must parse as IPv4; anything else is a DNS name.
+  final looksNumeric = RegExp(r'^[0-9.]+$').hasMatch(literal);
+  if (looksNumeric) {
+    final parts = literal.split('.');
+    if (parts.length != 4) return false;
+    for (final part in parts) {
+      if (part.isEmpty || part.length > 3) return false;
+      final value = int.tryParse(part);
+      if (value == null || value < 0 || value > 255) return false;
+    }
+    return true;
   }
-  final bytes = address.rawAddress;
-  if (address.type == InternetAddressType.IPv6) {
-    return (bytes[0] & 0xfe) == 0xfc ||
-        (bytes[0] == 0xfe && (bytes[1] & 0xc0) == 0x80) ||
-        (bytes.last == 1 && bytes.take(15).every((byte) => byte == 0));
+  // A host with a colon and no brackets was an IPv6 literal in disguise.
+  if (host.startsWith('[')) {
+    final address = InternetAddress.tryParse(literal);
+    return address != null && address.type == InternetAddressType.IPv6;
   }
-  final a = bytes[0];
-  final b = bytes[1];
-  return a == 10 ||
-      a == 127 ||
-      (a == 172 && b >= 16 && b <= 31) ||
-      (a == 192 && b == 168) ||
-      (a == 169 && b == 254) ||
-      (a == 100 && b >= 64 && b <= 127);
+  if (literal.contains(':')) return InternetAddress.tryParse(literal) != null;
+  return RegExp(r'^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*$')
+      .hasMatch(literal);
 }
 
 /// `wss://<host>/ws/v1/connect` for [server].
