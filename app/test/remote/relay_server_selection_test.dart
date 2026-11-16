@@ -97,7 +97,11 @@ void main() {
     await _choose(tester, ' relay.example.com/ ');
     expect(find.byType(SelfHostedLoginSheet), findsNothing);
     expect(f.container.read(relayServerProvider), _server);
-    expect((await SharedPreferences.getInstance()).getString(RelayServerController.prefsKey), _server);
+    expect(
+      RelayAccountSelection.decode((await SharedPreferences.getInstance()).getString(RelaySelectionController.prefsKey)!)
+          ?.origin,
+      _server,
+    );
     expect(f.container.read(relayAccountProvider).value?.signedIn, isFalse);
     expect(find.text('使用 Company SSO 登录'), findsOneWidget);
     expect(find.text('使用 GitHub 登录'), findsNothing);
@@ -122,7 +126,7 @@ void main() {
       expect(find.byType(SelfHostedLoginSheet), findsOneWidget);
       expect(find.text('服务器地址无效'), findsOneWidget);
       expect(f.container.read(relayServerProvider), isNull);
-      expect((await SharedPreferences.getInstance()).containsKey(RelayServerController.prefsKey), isFalse);
+      expect((await SharedPreferences.getInstance()).containsKey(RelaySelectionController.prefsKey), isFalse);
       expect(f.backends.keys, [defaultRelayServer]);
       expect(f.backends.values.single.passwordLogins, isEmpty);
     });

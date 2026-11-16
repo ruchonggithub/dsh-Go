@@ -57,8 +57,8 @@ void main() {
     test('a saved hosted address is not treated as the default', () {
       // Another build may have written this entry; it must not be flagged as
       // the special default, because this build offers no such default.
-      const entry = RelayServerEntry(origin: defaultRelayServerOrigin);
-      expect(entry.isDefault, isFalse);
+      const entry = RelayAccountEntry(origin: defaultRelayServerOrigin, account: 'me@example.com');
+      expect(entry.isDefaultServer, isFalse);
       // It is still a usable address, so it is not misread as garbage.
       expect(entry.hostLabel, 'dsh.r2049.cn');
     });

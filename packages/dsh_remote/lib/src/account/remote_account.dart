@@ -366,6 +366,7 @@ class RemoteAccount {
   RemoteAccount({
     required SecretStore secrets,
     Object? serverUrl,
+    this.accountKey,
     this.deviceName = 'DSH App',
     this.platform = 'dsh-app-android',
     this.clientVersion = '0.1.0',
@@ -384,10 +385,40 @@ class RemoteAccount {
        _secrets = secrets,
        _socketConnector = socketConnector {
     api = RemoteServerApi(this.serverUrl, httpClient: httpClient);
-    _scope = hashes.sha256.convert(utf8.encode(this.serverUrl.origin)).toString().substring(0, 24);
+    _scope = _scopeFor(this.serverUrl.origin, accountKey);
     final scopes = _accountStorageStates[secrets] ??= {};
     _storageState = scopes.putIfAbsent(_scope, _AccountStorageState.new);
   }
+
+  /// Which sign-in on [serverUrl] this instance speaks for, or null for "the
+  /// one sign-in this server has".
+  ///
+  /// Upstream keys credentials by server origin alone, so signing in to a
+  /// second account on the same server overwrites the first: there is only one
+  /// slot. Passing a key gives each account its own slot, and the app passes
+  /// the account it means to use. Null keeps the upstream behaviour so a build
+  /// that never sets it reads the same storage as before.
+  final String? accountKey;
+
+  /// Storage scope for one sign-in: derived from the server, and from
+  /// [accountKey] when there is one.
+  ///
+  /// Kept a pure function so the app can compute the same key without holding
+  /// a RemoteAccount, and so the migration can enumerate old slots.
+  static String _scopeFor(String origin, String? accountKey) {
+    final key = accountKey?.trim();
+    final seed = key == null || key.isEmpty ? origin : '$origin\n${_normalizeAccountKey(key)}';
+    return hashes.sha256.convert(utf8.encode(seed)).toString().substring(0, 24);
+  }
+
+  /// Case- and whitespace-insensitive, so "Me@Example.com " and
+  /// "me@example.com" are one account rather than two.
+  static String _normalizeAccountKey(String key) => key.trim().toLowerCase();
+
+  /// The storage scope a given server + account pair uses. Exposed for the
+  /// app's account list and for migrating a pre-existing single slot.
+  static String scopeFor({required String serverUrl, String? accountKey}) =>
+      _scopeFor(normalizeServerUrl(serverUrl).origin, accountKey);
 
   final Uri serverUrl;
   final String deviceName;

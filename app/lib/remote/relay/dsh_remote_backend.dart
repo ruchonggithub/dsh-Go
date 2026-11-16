@@ -23,6 +23,7 @@ class DshRemoteRelayBackend implements RelayBackend, RelayNetworkBackend, RelayP
   DshRemoteRelayBackend({
     required SecretStore secrets,
     Object? serverUrl,
+    String? accountKey,
     String clientVersion = '0.1.0',
     remote.RemoteAccount? account,
     this.peerConnector,
@@ -35,6 +36,7 @@ class DshRemoteRelayBackend implements RelayBackend, RelayNetworkBackend, RelayP
            remote.RemoteAccount(
              secrets: _Secrets(secrets),
              serverUrl: serverUrl,
+             accountKey: accountKey,
              deviceName: 'DSH App (Android)',
              platform: 'dsh-app-android',
              clientVersion: clientVersion,

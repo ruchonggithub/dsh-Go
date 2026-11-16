@@ -68,7 +68,7 @@ Future<void> _frames(WidgetTester tester) async {
 // Remote authentication and link status/retry are controlled seams; this is
 // a login UI regression, not a transport or credential-expiry reproduction.
 Future<_Fixture> _openFailedHost(WidgetTester tester, {String? provider = 'password', String? server = _server}) async {
-  SharedPreferences.setMockInitialValues({RelayServerController.prefsKey: ?server});
+  SharedPreferences.setMockInitialValues({RelaySelectionController.prefsKey: ?server});
   usePhoneSurface(tester);
   final opened = <Uri>[];
   final retries = <HostRef>[];

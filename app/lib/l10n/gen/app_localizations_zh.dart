@@ -14982,6 +14982,18 @@ class L10nZh extends L10n {
   String get remoteRestoreServer => '改回默认服务器 dsh.r2049.cn';
 
   @override
+  String get remoteSignedInAccounts => '已登录的账号';
+
+  @override
+  String get remoteEmailIsAccount => '同一服务器可登录多个账号，各自独立';
+
+  @override
+  String get remoteAddAccountHere => '在此服务器添加账号';
+
+  @override
+  String get remoteAccountMissing => '需要重新登录';
+
+  @override
   String get remoteAddServer => '添加服务器';
 
   @override

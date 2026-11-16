@@ -2,61 +2,63 @@ import 'dart:convert';
 
 import '../links/removed_links.dart' show hostedRelayServerEnabled;
 
-/// Marker type for [RelayServerEntry.copyWith]'s `label` argument.
-///
-/// Two `const Object()` values are canonicalized to the same instance, so
-/// `identical()` cannot tell "argument omitted" from "clear the label" with a
-/// bare sentinel. Distinct subclasses can.
-sealed class _LabelArg {
-  const _LabelArg();
-}
-
-final class _Unset extends _LabelArg {
-  const _Unset();
-}
-
-final class _Clear extends _LabelArg {
-  const _Clear();
-}
-
-const _LabelArg _unset = _Unset();
-
-/// Default for a [RelayServerEntry.copyWith] argument that was not passed.
-const _LabelArg _clearLabel = _Clear();
-
 /// The DSH Remote server the app talks to when nothing else is chosen.
 ///
 /// Duplicated from `hosts_state.dart` rather than imported: that file imports
 /// this one, and `isDefault` only needs the literal.
 const String defaultRelayServerOrigin = 'https://dsh.r2049.cn';
 
-/// One DSH Remote server the person has used, with its own sign-in.
+/// Marker for [RelayAccountEntry.copyWith]'s `label`.
 ///
-/// Credentials are already kept per server inside `packages/dsh_remote`
-/// (the storage key is scoped by a hash of the origin), so remembering the
-/// list here only needs the address and a display hint: signing back in to a
-/// server that was signed in before is immediate.
-class RelayServerEntry {
-  const RelayServerEntry({required this.origin, this.label, this.account, this.lastUsed});
+/// Two `const Object()` values canonicalize to the same instance, so a bare
+/// sentinel cannot distinguish "argument omitted" from "clear the label".
+final class _ClearLabel {
+  const _ClearLabel();
+}
 
-  /// Normalized origin, exactly as [DshRemoteRelayBackend.normalizeServer]
-  /// returns it and as `_scope` in `packages/dsh_remote` is derived from.
+const Object _unset = _Unset();
+const Object _clearLabel = _ClearLabel();
+
+final class _Unset {
+  const _Unset();
+}
+
+/// One signed-in account on one DSH Remote server.
+///
+/// A server can hold several accounts, and each has its own credentials: the
+/// storage scope in `packages/dsh_remote` is derived from the origin *and* the
+/// account, so switching between them does not sign one out to reach the other.
+/// This record is the shortcut that makes them reachable — the tokens stay in
+/// secure storage under that scope.
+class RelayAccountEntry {
+  const RelayAccountEntry({required this.origin, required this.account, this.label, this.provider, this.lastUsed});
+
+  /// Normalized origin, exactly as `DshRemoteRelayBackend.normalizeServer`
+  /// returns it and as the storage scope is derived from.
   final String origin;
 
-  /// What the person called it, when they typed a name. Falls back to the
-  /// host's label from the address.
+  /// The account name the server reports: an email for password sign-in, an
+  /// account id for the OAuth providers. Empty for a row migrated from a
+  /// version that did not record accounts — such a row carries only the
+  /// address until the person signs in on it.
+  final String account;
+
+  /// What the person called it, when they typed a name.
   final String? label;
 
-  /// The account name last signed in here, for the list subtitle. Null when
-  /// this server was only selected, never signed in to.
-  final String? account;
+  /// The sign-in method last used here (`password`, `github`, ...). Null for
+  /// rows written before it was tracked.
+  final String? provider;
 
   final DateTime? lastUsed;
 
-  /// Whether this is the hosted server. Always false in a build that does not
-  /// offer it ([hostedRelayServerEnabled]); the address still parses, so an
-  /// entry saved by another build is not misread.
-  bool get isDefault => hostedRelayServerEnabled && origin == defaultRelayServerOrigin;
+  /// Identity of the row: one person per server is one row.
+  String get id => '$origin\n${account.trim().toLowerCase()}';
+
+  /// A migrated row that cannot address a credential slot yet.
+  bool get needsAccount => account.trim().isEmpty;
+
+  bool get isDefaultServer => hostedRelayServerEnabled && origin == defaultRelayServerOrigin;
 
   /// The address without its scheme, for compact rows.
   String get hostLabel {
@@ -64,15 +66,17 @@ class RelayServerEntry {
     return uri == null ? origin : uri.authority;
   }
 
-  String get displayName => (label != null && label!.trim().isNotEmpty) ? label!.trim() : hostLabel;
+  String get displayName {
+    if (label != null && label!.trim().isNotEmpty) return label!.trim();
+    if (needsAccount) return hostLabel;
+    return account;
+  }
 
-  RelayServerEntry copyWith({
-    /// The new label, a `String`, or one of the [_LabelArg] markers. Pass
-    /// [clearLabel] to remove it; omitting the argument keeps the current one.
-    /// A plain `String?` cannot express "clear it", because `null` already
-    /// means "leave it alone".
+  RelayAccountEntry copyWith({
+    /// The new label, or [clearLabel] to remove it. Omitting keeps the current
+    /// one; a plain `String?` cannot express "clear it".
     Object? label = _unset,
-    String? Function()? account,
+    String? Function()? provider,
     DateTime? lastUsed,
   }) {
     final String? nextLabel;
@@ -83,10 +87,11 @@ class RelayServerEntry {
     } else {
       nextLabel = label as String;
     }
-    return RelayServerEntry(
+    return RelayAccountEntry(
       origin: origin,
+      account: account,
       label: nextLabel,
-      account: account != null ? account() : this.account,
+      provider: provider != null ? provider() : this.provider,
       lastUsed: lastUsed ?? this.lastUsed,
     );
   }
@@ -95,36 +100,40 @@ class RelayServerEntry {
   static const Object clearLabel = _clearLabel;
 
   /// Sets the label, or removes it when [value] is null or blank.
-  RelayServerEntry withLabel(String? value) {
+  RelayAccountEntry withLabel(String? value) {
     final trimmed = value?.trim();
     return copyWith(label: (trimmed == null || trimmed.isEmpty) ? clearLabel : trimmed);
   }
 
   Map<String, Object?> toJson() => {
     'origin': origin,
+    'account': account,
     if (label != null) 'label': label,
-    if (account != null) 'account': account,
+    if (provider != null) 'provider': provider,
     if (lastUsed != null) 'lastUsed': lastUsed!.toIso8601String(),
   };
 
-  static RelayServerEntry? fromJson(Object? raw) {
+  static RelayAccountEntry? fromJson(Object? raw) {
     if (raw is! Map) return null;
     final origin = raw['origin'];
     if (origin is! String || origin.isEmpty) return null;
-    final label = raw['label'];
     final account = raw['account'];
+    // An absent account is a migrated row, not a broken one.
+    final label = raw['label'];
+    final provider = raw['provider'];
     final lastUsed = raw['lastUsed'];
-    return RelayServerEntry(
+    return RelayAccountEntry(
       origin: origin,
+      account: account is String ? account : '',
       label: label is String && label.isNotEmpty ? label : null,
-      account: account is String && account.isNotEmpty ? account : null,
+      provider: provider is String && provider.isNotEmpty ? provider : null,
       lastUsed: lastUsed is String ? DateTime.tryParse(lastUsed) : null,
     );
   }
 
-  /// Decodes a stored list, dropping anything unreadable. A single bare string
-  /// is accepted so a partially migrated value never loses the server.
-  static List<RelayServerEntry> decodeList(String? raw) {
+  /// Decodes a stored list, dropping anything unreadable and collapsing
+  /// duplicates to the first occurrence.
+  static List<RelayAccountEntry> decodeList(String? raw) {
     if (raw == null || raw.isEmpty) return const [];
     Object? decoded;
     try {
@@ -132,20 +141,62 @@ class RelayServerEntry {
     } catch (_) {
       return const [];
     }
-    if (decoded is String) {
-      final entry = RelayServerEntry(origin: decoded);
-      return entry.origin.isEmpty ? const [] : [entry];
-    }
     if (decoded is! List) return const [];
-    final entries = <RelayServerEntry>[];
+    final entries = <RelayAccountEntry>[];
     final seen = <String>{};
     for (final item in decoded) {
       final entry = fromJson(item);
-      if (entry == null || !seen.add(entry.origin)) continue;
+      if (entry == null || !seen.add(entry.id)) continue;
       entries.add(entry);
     }
     return entries;
   }
 
-  static String encodeList(List<RelayServerEntry> entries) => jsonEncode([for (final e in entries) e.toJson()]);
+  static String encodeList(List<RelayAccountEntry> entries) => jsonEncode([for (final e in entries) e.toJson()]);
+
+  /// Reads the server-only list an earlier version wrote
+  /// (`remote_relay_servers`): one row per server, with the last account seen
+  /// on it rather than one row per account.
+  static List<LegacyServerRow> decodeLegacyServers(String? raw) {
+    if (raw == null || raw.isEmpty) return const [];
+    Object? decoded;
+    try {
+      decoded = jsonDecode(raw);
+    } catch (_) {
+      return const [];
+    }
+    if (decoded is! List) return const [];
+    final out = <LegacyServerRow>[];
+    final seen = <String>{};
+    for (final item in decoded) {
+      if (item is! Map) continue;
+      final origin = item['origin'];
+      if (origin is! String || origin.isEmpty || !seen.add(origin)) continue;
+      final label = item['label'];
+      final account = item['account'];
+      final lastUsed = item['lastUsed'];
+      out.add(
+        LegacyServerRow(
+          origin: origin,
+          label: label is String && label.isNotEmpty ? label : null,
+          account: account is String && account.isNotEmpty ? account : null,
+          lastUsed: lastUsed is String ? DateTime.tryParse(lastUsed) : null,
+        ),
+      );
+    }
+    return out;
+  }
+}
+
+/// One row of the server-only list an earlier version stored.
+class LegacyServerRow {
+  const LegacyServerRow({required this.origin, this.label, this.account, this.lastUsed});
+
+  final String origin;
+  final String? label;
+
+  /// The account last seen on this server, if one was recorded.
+  final String? account;
+
+  final DateTime? lastUsed;
 }

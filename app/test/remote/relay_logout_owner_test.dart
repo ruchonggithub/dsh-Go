@@ -169,7 +169,7 @@ class _Fixture {
     try {
       final original = await backend.loginWithPassword(FakeRemoteServer.account, FakeRemoteServer.password);
       SharedPreferences.setMockInitialValues({
-        RelayServerController.prefsKey: server.url.origin,
+        RelaySelectionController.prefsKey: server.url.origin,
         ActiveHostController.prefsKey: HostRef.local.encode(),
       });
       container = ProviderContainer(

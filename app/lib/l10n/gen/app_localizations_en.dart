@@ -15738,6 +15738,18 @@ class L10nEn extends L10n {
   String get remoteRestoreServer => 'Restore default server dsh.r2049.cn';
 
   @override
+  String get remoteSignedInAccounts => 'Signed-in accounts';
+
+  @override
+  String get remoteEmailIsAccount => 'A server can hold several accounts, each signed in separately';
+
+  @override
+  String get remoteAddAccountHere => 'Add an account on this server';
+
+  @override
+  String get remoteAccountMissing => 'Sign in again';
+
+  @override
   String get remoteAddServer => 'Add server';
 
   @override

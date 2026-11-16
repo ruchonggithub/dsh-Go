@@ -27380,6 +27380,30 @@ abstract class L10n {
   /// **'改回默认服务器 dsh.r2049.cn'**
   String get remoteRestoreServer;
 
+  /// No description provided for @remoteSignedInAccounts.
+  ///
+  /// In zh, this message translates to:
+  /// **'已登录的账号'**
+  String get remoteSignedInAccounts;
+
+  /// No description provided for @remoteEmailIsAccount.
+  ///
+  /// In zh, this message translates to:
+  /// **'同一服务器可登录多个账号，各自独立'**
+  String get remoteEmailIsAccount;
+
+  /// No description provided for @remoteAddAccountHere.
+  ///
+  /// In zh, this message translates to:
+  /// **'在此服务器添加账号'**
+  String get remoteAddAccountHere;
+
+  /// No description provided for @remoteAccountMissing.
+  ///
+  /// In zh, this message translates to:
+  /// **'需要重新登录'**
+  String get remoteAccountMissing;
+
   /// No description provided for @remoteAddServer.
   ///
   /// In zh, this message translates to:

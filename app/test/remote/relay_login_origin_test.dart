@@ -109,7 +109,7 @@ class _Preferences extends InMemorySharedPreferencesStore {
   @override
   Future<bool> setValue(String valueType, String key, Object value) {
     _SaveReply? gate;
-    if (key == 'flutter.${RelayServerController.prefsKey}' &&
+    if (key == 'flutter.${RelaySelectionController.prefsKey}' &&
         _planned.isNotEmpty) {
       gate = _planned.removeAt(0);
       if (valueType != 'String' || value != gate.origin) {
@@ -242,7 +242,7 @@ class _Fixture {
       fixture.b = await FakeRemoteServer.start();
       fixture.servers.add(fixture.b);
       fixture.preferences = _Preferences({
-        'flutter.${RelayServerController.prefsKey}': fixture.b.url.origin,
+        'flutter.${RelaySelectionController.prefsKey}': fixture.b.url.origin,
         'flutter.${ActiveHostController.prefsKey}': HostRef.local.encode(),
       });
       SharedPreferencesStorePlatform.instance = fixture.preferences;

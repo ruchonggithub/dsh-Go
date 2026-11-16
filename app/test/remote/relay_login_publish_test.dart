@@ -149,7 +149,7 @@ void main() {
       try {
         await driveRealIo(tester, () async {
           final prefs = await SharedPreferences.getInstance();
-          await prefs.setString(RelayServerController.prefsKey, a.url.origin);
+          await prefs.setString(RelaySelectionController.prefsKey, a.url.origin);
         });
         final c = container = ProviderContainer(
           overrides: [
