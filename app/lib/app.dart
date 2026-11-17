@@ -62,12 +62,9 @@ class _DshAppState extends ConsumerState<DshApp> with WidgetsBindingObserver {
     ref.read(usageStatsProvider);
     // The entertainment half's launch work is skipped while it is off, not just
     // hidden: both of these send or schedule something, and a switch that only
-    // hides screens would keep doing that in the background.
+    // hides screens would keep doing that in the background. Turning the half on
+    // later gets its launch work from the listener in [build].
     if (ref.read(entertainmentEnabledProvider)) _startEntertainmentLaunchWork(ref);
-    // Turning the half on later still gets its launch work, without a restart.
-    ref.listen<bool>(entertainmentEnabledProvider, (was, now) {
-      if (now && was != true) _startEntertainmentLaunchWork(ref);
-    });
     // 刷新率: some systems cap third-party apps at 60 Hz and then show their per-app
     // switch as an in-app setting; the app answers frames to run at the fastest rate
     // while it is actually drawing (see RefreshRateService).
@@ -163,6 +160,12 @@ class _DshAppState extends ConsumerState<DshApp> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
+    // Turning 生产力模式 off while the app runs still gets the entertainment
+    // half's launch work, without a restart. A listener belongs in build: in
+    // initState riverpod refuses it ("can only be used within the build method").
+    ref.listen<bool>(entertainmentEnabledProvider, (was, now) {
+      if (now && was != true) _startEntertainmentLaunchWork(ref);
+    });
     // 刷新率设置改动时告诉原生;setMode 对同一个值不做任何事。
     unawaited(
       RefreshRateService.instance.setMode(ref.watch(performancePrefsProvider.select((p) => p.refreshRate))),

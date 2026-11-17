@@ -610,17 +610,6 @@ abstract final class Spots {
     keywords: (l) => l.searchKwCommunity,
   );
 
-  /// 设置 › 娱乐内容: the one switch over the app's play half. It sits in 通用
-  /// because it decides what the app offers, not how it looks.
-  static final entertainment = SettingSpot(
-    'entertainment',
-    page: SettingsPageId.hub,
-    group: _general,
-    title: (l) => l.settingsEntertainment,
-    keywords: (l) => l.searchKwEntertainment,
-    link: 'entertainment',
-  );
-
   // 模型.
   static final addProvider = SettingSpot(
     'add-provider',
@@ -769,6 +758,17 @@ abstract final class Spots {
     page: SettingsPageId.appearance,
     title: (l) => l.wallpaperTitle,
     keywords: (l) => l.searchKwWallpaper,
+  );
+
+  /// 外观 › 生产力模式: the one switch over the app's play half. It hides the
+  /// entertainment entries rather than removing them, and it is stored inverted,
+  /// so the name says what a person turns on.
+  static final productivity = SettingSpot(
+    'productivity',
+    page: SettingsPageId.appearance,
+    title: (l) => l.settingsProductivity,
+    keywords: (l) => l.searchKwProductivity,
+    link: 'productivity',
   );
 
   // 宠物.
@@ -1105,7 +1105,6 @@ final _rows = <SettingSpot>[
   Spots.language,
   Spots.askAi,
   Spots.community,
-  Spots.entertainment,
   Spots.addProvider,
   Spots.permissionCurrent,
   Spots.permissionDefault,
@@ -1126,6 +1125,7 @@ final _rows = <SettingSpot>[
   Spots.iconShortcut,
   Spots.launchScreen,
   Spots.wallpaper,
+  Spots.productivity,
   Spots.petSize,
   Spots.petQuiet,
   Spots.petOutsideApp,

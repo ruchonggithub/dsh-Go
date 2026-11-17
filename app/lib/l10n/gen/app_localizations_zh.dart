@@ -8882,6 +8882,12 @@ class L10nZh extends L10n {
   String get settingsEntertainmentHint => '关闭后隐藏所有娱乐入口';
 
   @override
+  String get settingsProductivity => '生产力模式';
+
+  @override
+  String get settingsProductivityHint => '开启后隐藏娱乐入口，只留工作';
+
+  @override
   String get launchScreenTitle => '启动画面';
 
   @override
@@ -16151,6 +16157,9 @@ class L10nZh extends L10n {
 
   @override
   String get searchKwEntertainment => '娱乐,娱乐内容,酒馆,伙伴,宠物,DS Bot,社区,论坛,分享,关闭娱乐';
+
+  @override
+  String get searchKwProductivity => '生产力,生产力模式,专注,工作,隐藏娱乐,关闭娱乐,酒馆,伙伴,宠物,DS Bot,社区,论坛,分享';
 
   @override
   String get searchKwStar => 'GitHub,星标,点赞';

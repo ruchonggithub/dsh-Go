@@ -9374,6 +9374,12 @@ class L10nEn extends L10n {
   String get settingsEntertainmentHint => 'Off hides every play entry';
 
   @override
+  String get settingsProductivity => 'Productivity mode';
+
+  @override
+  String get settingsProductivityHint => 'On hides the play entries and leaves the work half';
+
+  @override
   String get launchScreenTitle => 'Launch screen';
 
   @override
@@ -16995,6 +17001,10 @@ class L10nEn extends L10n {
   @override
   String get searchKwEntertainment =>
       'entertainment,fun,tavern,companion,pets,ds bot,community,forum,sharing,hide entertainment';
+
+  @override
+  String get searchKwProductivity =>
+      'productivity,productivity mode,focus,work mode,hide entertainment,entertainment,tavern,companion,pets,ds bot,community,forum,sharing';
 
   @override
   String get searchKwStar => 'github,star';

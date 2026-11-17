@@ -65,4 +65,50 @@ void main() {
   test('the default is off, so a fresh install sees no entertainment', () {
     expect(EntertainmentSettings.defaultEnabled, isFalse);
   });
+
+  test('生产力模式 is the inverse, and on by default', () async {
+    // The same fresh install: nothing stored means 娱乐 off, 生产力 on.
+    final c = container();
+    expect(c.read(productivityModeProvider), isTrue);
+    await c.read(entertainmentProvider.notifier).ready;
+    expect(c.read(productivityModeProvider), isTrue);
+  });
+
+  test('setProductivity(true) turns entertainment off, and is remembered inverted', () async {
+    final first = container();
+    await first.read(entertainmentProvider.notifier).setProductivity(false);
+    expect(first.read(entertainmentEnabledProvider), isTrue);
+    expect(first.read(productivityModeProvider), isFalse);
+    // Stored as 生产力模式: off.
+    expect((await SharedPreferences.getInstance()).getBool(EntertainmentSettings.prefsKey), isFalse);
+
+    final second = await loaded();
+    expect(second.read(productivityModeProvider), isFalse);
+
+    await second.read(entertainmentProvider.notifier).setProductivity(true);
+    expect(second.read(entertainmentEnabledProvider), isFalse);
+  });
+
+  test('a stored 娱乐内容 choice is migrated to the new key, inverted', () async {
+    // The old build stored the entertainment switch itself under the old key.
+    SharedPreferences.setMockInitialValues({EntertainmentSettings.legacyPrefsKey: true});
+    final c = await loaded();
+    expect(c.read(entertainmentEnabledProvider), isTrue);
+    expect(c.read(productivityModeProvider), isFalse);
+
+    // Migrated once: the new key now holds 生产力模式 (the inverse).
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getBool(EntertainmentSettings.prefsKey), isFalse);
+    // The old key is left alone, so a downgrade still finds its own value.
+    expect(prefs.getBool(EntertainmentSettings.legacyPrefsKey), isTrue);
+  });
+
+  test('the new key wins over the old one', () async {
+    SharedPreferences.setMockInitialValues({
+      EntertainmentSettings.legacyPrefsKey: true,
+      EntertainmentSettings.prefsKey: true, // 生产力 on: entertainment off
+    });
+    final c = await loaded();
+    expect(c.read(entertainmentEnabledProvider), isFalse);
+  });
 }

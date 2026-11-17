@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../l10n/l10n.dart';
 import '../../state/app_info.dart';
+import '../../state/entertainment_state.dart' show entertainmentEnabledProvider;
 import '../../state/star_prompt.dart' show starLinkOpenerProvider;
 import '../../state/update_state.dart';
 import '../shell/brand_mark.dart';
@@ -45,13 +46,15 @@ class AboutPage extends ConsumerWidget {
               value: Text(version, style: AppType.tabular(theme.textTheme.bodyMedium!)),
             ),
             const AppUpdateTiles(),
-            SettingsTile(
-              key: const ValueKey('settings-star'),
-              spot: Spots.star,
-              onTap: () => unawaited(
-                openStarProject(ProviderScope.containerOf(context, listen: false), ScaffoldMessenger.maybeOf(context)),
+            // 生产力模式 on: the star prompt is part of the play half.
+            if (ref.watch(entertainmentEnabledProvider))
+              SettingsTile(
+                key: const ValueKey('settings-star'),
+                spot: Spots.star,
+                onTap: () => unawaited(
+                  openStarProject(ProviderScope.containerOf(context, listen: false), ScaffoldMessenger.maybeOf(context)),
+                ),
               ),
-            ),
             SettingsTile(
               spot: Spots.licenses,
               onTap: () => showLicensePage(

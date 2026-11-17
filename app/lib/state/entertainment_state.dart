@@ -5,6 +5,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 /// Whether the app offers its entertainment half.
 ///
+/// People do not see this value: they see **生产力模式** (`productivityModeProvider`,
+/// 设置 › 外观), which is this one inverted. On hides the play half; off shows it.
+///
 /// One switch for everything that is play rather than work: the tavern (role
 /// play), the companion room, pets, DS Bots, the community page and the forum,
 /// wallpapers, share posters, conversation replay and the little visual
@@ -25,9 +28,20 @@ class EntertainmentSettings {
   const EntertainmentSettings({this.enabled = defaultEnabled, this.loaded = false});
 
   /// Off unless the person turns it on: this build is meant for work first.
+  ///
+  /// 生产力模式's default is the inverse: on, which is this.
   static const bool defaultEnabled = false;
 
-  static const String prefsKey = 'entertainment.enabled';
+  /// Where the choice is stored now: 生产力模式 itself, so the key says what
+  /// people see. Read through [EntertainmentController._load], which also
+  /// migrates [legacyPrefsKey].
+  static const String prefsKey = 'productivity.enabled';
+
+  /// The old key, which stored the entertainment switch directly (the inverse).
+  ///
+  /// Only read, once, when [prefsKey] is absent: a person who chose
+  /// 娱乐内容 on keeps entertainment on (productivity off) across the rename.
+  static const String legacyPrefsKey = 'entertainment.enabled';
 
   /// Whether the entertainment half is offered.
   final bool enabled;
@@ -60,11 +74,25 @@ class EntertainmentController extends Notifier<EntertainmentSettings> {
       final prefs = await SharedPreferences.getInstance();
       // A choice made while the read was in flight wins.
       if (_touched) return;
+      // The new key holds 生产力模式 (the inverse); the old one held this value.
       final stored = prefs.getBool(EntertainmentSettings.prefsKey);
-      state = EntertainmentSettings(
-        enabled: stored ?? EntertainmentSettings.defaultEnabled,
-        loaded: true,
-      );
+      if (stored != null) {
+        state = EntertainmentSettings(enabled: !stored, loaded: true);
+        return;
+      }
+      final legacy = prefs.getBool(EntertainmentSettings.legacyPrefsKey);
+      if (legacy != null) {
+        // Migrated once, so the old key is never read again (nothing is
+        // deleted, so a downgrade still finds its own value). A choice made
+        // meanwhile wins over both.
+        try {
+          await prefs.setBool(EntertainmentSettings.prefsKey, !legacy);
+        } catch (_) {}
+        if (_touched) return;
+        state = EntertainmentSettings(enabled: legacy, loaded: true);
+        return;
+      }
+      state = const EntertainmentSettings(loaded: true);
     } catch (_) {
       state = const EntertainmentSettings(loaded: true);
     }
@@ -75,9 +103,14 @@ class EntertainmentController extends Notifier<EntertainmentSettings> {
     state = state.copyWith(enabled: enabled, loaded: true);
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool(EntertainmentSettings.prefsKey, enabled);
+      // Stored inverted: the key is 生产力模式.
+      await prefs.setBool(EntertainmentSettings.prefsKey, !enabled);
     } catch (_) {}
   }
+
+  /// 生产力模式: on hides the play half. The switch people actually see; it is
+  /// [setEnabled] with the answer inverted, so there is one stored state.
+  Future<void> setProductivity(bool productivity) => setEnabled(!productivity);
 }
 
 final entertainmentProvider = NotifierProvider<EntertainmentController, EntertainmentSettings>(
@@ -88,6 +121,11 @@ final entertainmentProvider = NotifierProvider<EntertainmentController, Entertai
 ///
 /// Read as a boolean so a widget rebuilds only when the answer changes, not on
 /// every unrelated update of the settings object.
-final entertainmentEnabledProvider = Provider<bool>(
-  (ref) => ref.watch(entertainmentProvider.select((s) => s.enabled)),
-);
+final entertainmentEnabledProvider = Provider<bool>((ref) => ref.watch(entertainmentProvider.select((s) => s.enabled)));
+
+/// 生产力模式: hides the entertainment half. Inverse of `enabled`.
+///
+/// The one switch the settings show (设置 › 外观). It is derived rather than
+/// stored, so every screen that already reads [entertainmentEnabledProvider]
+/// keeps its meaning and there is still a single stored answer.
+final productivityModeProvider = Provider<bool>((ref) => !ref.watch(entertainmentEnabledProvider));

@@ -338,5 +338,7 @@
   "hubQuickPanelItems": "显示的入口",
   "hubQuickPanelItemsNone": "没有选择，左滑不会打开",
   "settingsEntertainment": "娱乐内容",
-  "settingsEntertainmentHint": "关闭后隐藏所有娱乐入口"
+  "settingsEntertainmentHint": "关闭后隐藏所有娱乐入口",
+  "settingsProductivity": "生产力模式",
+  "settingsProductivityHint": "开启后隐藏娱乐入口，只留工作"
 }

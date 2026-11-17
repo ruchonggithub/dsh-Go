@@ -13,6 +13,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../l10n/l10n.dart';
 import '../../../state/appearance_state.dart';
+import '../../../state/entertainment_state.dart';
 import '../../../state/settings_state.dart';
 import '../../../ui_config/ui_config.dart';
 import '../../common/expand_reveal.dart';
@@ -93,6 +94,20 @@ class AppearancePage extends ConsumerWidget {
           title: l10n.pluginsFeatureIcons,
           children: [SpotAnchor(spot: Spots.tileStyle, child: const TileStylePicker())],
         ),
+        // 生产力模式: what the app offers, worn as a look — on hides the play
+        // half (酒馆, 伙伴, pets, the community) and leaves the work half alone.
+        // It is stored inverted from 娱乐内容, which this row replaced.
+        SettingsSection(
+          children: [
+            SettingsSwitchTile(
+              key: const ValueKey('settings-productivity'),
+              spot: Spots.productivity,
+              subtitle: l10n.settingsProductivityHint,
+              value: ref.watch(productivityModeProvider),
+              onChanged: (v) => unawaited(ref.read(entertainmentProvider.notifier).setProductivity(v)),
+            ),
+          ],
+        ),
         SettingsSection(
           title: l10n.pluginsAppIcon,
           children: [
@@ -105,11 +120,15 @@ class AppearancePage extends ConsumerWidget {
           footer: Text(l10n.launchFooter),
           children: [SpotAnchor(spot: Spots.launchScreen, child: const LaunchScreenSection())],
         ),
-        SettingsSection(
-          title: l10n.wallpaperTitle,
-          footer: Text(l10n.wallpaperFooter),
-          children: [SpotAnchor(spot: Spots.wallpaper, child: const WallpaperSection())],
-        ),
+        // 生产力模式 on hides the wallpaper picker: a personal backdrop is
+        // decoration, not work. Taking the accent colour *from* a wallpaper
+        // (`_WallpaperRow` above) stays — that is how the palette is chosen.
+        if (ref.watch(entertainmentEnabledProvider))
+          SettingsSection(
+            title: l10n.wallpaperTitle,
+            footer: Text(l10n.wallpaperFooter),
+            children: [SpotAnchor(spot: Spots.wallpaper, child: const WallpaperSection())],
+          ),
       ],
     );
   }

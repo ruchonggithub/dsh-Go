@@ -222,7 +222,9 @@ class SettingsScreen extends ConsumerWidget {
               value: settings.foldCompletedTurns,
               onChanged: (v) => unawaited(notifier.setFoldCompletedTurns(v)),
             ),
-            const PetEntryTile(tint: SettingsHues.appearance),
+            // 设置 › 娱乐内容 off: 桌宠 is part of the play half, so its row
+            // follows that switch like 社区 below does.
+            if (ref.watch(entertainmentEnabledProvider)) const PetEntryTile(tint: SettingsHues.appearance),
           ],
         ),
         SettingsSection(
@@ -236,18 +238,6 @@ class SettingsScreen extends ConsumerWidget {
               onTap: () => _push(context, const InterfacePage()),
             ),
             const LanguageSettingsTile(tint: SettingsHues.general),
-            // 娱乐内容: what the app offers, not how it looks, which is why it
-            // sits in 通用 and not 外观. Off hides the entries; the pages stay
-            // compiled for the next merge with upstream.
-            SettingsSwitchTile(
-              key: const ValueKey('settings-entertainment'),
-              icon: AppIcons.playVideo,
-              tint: SettingsHues.general,
-              spot: Spots.entertainment,
-              subtitle: l10n.settingsEntertainmentHint,
-              value: ref.watch(entertainmentEnabledProvider),
-              onChanged: (v) => unawaited(ref.read(entertainmentProvider.notifier).setEnabled(v)),
-            ),
             const NotificationSettingsTile(tint: SettingsHues.general),
             const VoiceSettingsTile(tint: SettingsHues.general),
             const PerformanceSettingsTile(tint: SettingsHues.general),

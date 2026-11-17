@@ -16382,6 +16382,18 @@ abstract class L10n {
   /// **'关闭后隐藏所有娱乐入口'**
   String get settingsEntertainmentHint;
 
+  /// No description provided for @settingsProductivity.
+  ///
+  /// In zh, this message translates to:
+  /// **'生产力模式'**
+  String get settingsProductivity;
+
+  /// No description provided for @settingsProductivityHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'开启后隐藏娱乐入口，只留工作'**
+  String get settingsProductivityHint;
+
   /// No description provided for @launchScreenTitle.
   ///
   /// In zh, this message translates to:
@@ -29545,6 +29557,12 @@ abstract class L10n {
   /// In zh, this message translates to:
   /// **'娱乐,娱乐内容,酒馆,伙伴,宠物,DS Bot,社区,论坛,分享,关闭娱乐'**
   String get searchKwEntertainment;
+
+  /// No description provided for @searchKwProductivity.
+  ///
+  /// In zh, this message translates to:
+  /// **'生产力,生产力模式,专注,工作,隐藏娱乐,关闭娱乐,酒馆,伙伴,宠物,DS Bot,社区,论坛,分享'**
+  String get searchKwProductivity;
 
   /// No description provided for @searchKwStar.
   ///

@@ -183,5 +183,7 @@
   "hubQuickPanelItems": "What it lists",
   "hubQuickPanelItemsNone": "Nothing chosen: a left swipe won't open it",
   "settingsEntertainment": "Entertainment",
-  "settingsEntertainmentHint": "Off hides every play entry"
+  "settingsEntertainmentHint": "Off hides every play entry",
+  "settingsProductivity": "Productivity mode",
+  "settingsProductivityHint": "On hides the play entries and leaves the work half"
 }
