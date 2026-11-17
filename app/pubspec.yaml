@@ -26,7 +26,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # (this one removes the built-in external links). Raise the suffix for every
 # subsequent change; that keeps "which upstream, how far from it" readable at a
 # glance without inventing an upstream-looking version number.
-version: 1.0.16-7+1
+version: 1.0.16-8+1
 
 environment:
   sdk: ^3.13.5

@@ -94,20 +94,6 @@ class AppearancePage extends ConsumerWidget {
           title: l10n.pluginsFeatureIcons,
           children: [SpotAnchor(spot: Spots.tileStyle, child: const TileStylePicker())],
         ),
-        // 生产力模式: what the app offers, worn as a look — on hides the play
-        // half (酒馆, 伙伴, pets, the community) and leaves the work half alone.
-        // It is stored inverted from 娱乐内容, which this row replaced.
-        SettingsSection(
-          children: [
-            SettingsSwitchTile(
-              key: const ValueKey('settings-productivity'),
-              spot: Spots.productivity,
-              subtitle: l10n.settingsProductivityHint,
-              value: ref.watch(productivityModeProvider),
-              onChanged: (v) => unawaited(ref.read(entertainmentProvider.notifier).setProductivity(v)),
-            ),
-          ],
-        ),
         SettingsSection(
           title: l10n.pluginsAppIcon,
           children: [

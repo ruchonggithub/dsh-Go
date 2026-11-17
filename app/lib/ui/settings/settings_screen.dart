@@ -207,6 +207,17 @@ class SettingsScreen extends ConsumerWidget {
           title: l10n.hubSettingsAppearance,
           children: [
             const AppearanceEntryTile(tint: SettingsHues.appearance),
+            // 生产力模式 lives here, not inside 主题: it decides what the app
+            // offers, and burying it one page down made it look missing.
+            SettingsSwitchTile(
+              key: const ValueKey('settings-productivity'),
+              icon: AppIcons.theme,
+              tint: SettingsHues.appearance,
+              spot: Spots.productivity,
+              subtitle: l10n.settingsProductivityHint,
+              value: ref.watch(productivityModeProvider),
+              onChanged: (v) => unawaited(ref.read(entertainmentProvider.notifier).setProductivity(v)),
+            ),
             SettingsSegmentTile<double>(
               icon: AppIcons.textSize,
               tint: SettingsHues.appearance,
