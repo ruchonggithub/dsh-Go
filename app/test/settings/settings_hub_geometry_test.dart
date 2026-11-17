@@ -73,7 +73,12 @@ void main() {
     for (final tile in tester.widgetList<SettingsTile>(find.byType(SettingsTile))) {
       final title = tile.title ?? tile.spot!.title(appL10n);
       final row = find.ancestor(of: find.text(title), matching: find.byType(ConstrainedBox)).first;
-      expect(tester.getSize(row).height, SettingsMetrics.rowHeight, reason: title);
+      // A row with a subtitle is two lines (娱乐内容 has one); the rest are one.
+      expect(
+        tester.getSize(row).height,
+        tile.subtitle == null ? SettingsMetrics.rowHeight : SettingsMetrics.rowHeightTwoLine,
+        reason: title,
+      );
       expect(
         tester.getRect(find.text(title)).left,
         moreOrLessEquals(16 + SettingsMetrics.textStart, epsilon: _tol),

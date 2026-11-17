@@ -7,6 +7,7 @@ import '../../l10n/l10n.dart';
 import '../../runtime/local_footprint.dart';
 import '../../runtime/runtime_state.dart';
 import '../../state/connection_state.dart';
+import '../../state/entertainment_state.dart';
 import '../../state/hosts_state.dart';
 import '../../state/relay_server_entry.dart';
 import '../common/app_sheet.dart';
@@ -84,6 +85,8 @@ class HostSheet extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
     final active = ref.watch(activeHostProvider);
+    // Entertainment off: 伙伴小屋 is not offered from the host sheet either.
+    final showEntertainment = ref.watch(entertainmentEnabledProvider);
     final ssh = ref.watch(hostsProvider.select((s) => s.ssh));
     final account = ref.watch(relayAccountProvider).value;
     final relayHosts = account?.signedIn == true ? account!.hosts : const <RelayHost>[];
@@ -189,17 +192,18 @@ class HostSheet extends ConsumerWidget {
               SheetGroup(
                 margin: const EdgeInsets.fromLTRB(SheetTitleBar.inset, 0, SheetTitleBar.inset, 12),
                 children: [
-                  SettingsTile(
-                    icon: AppIcons.pet,
-                    tinted: false,
-                    title: l10n.companionTitle,
-                    subtitle: l10n.companionEntrySubtitle,
-                    onTap: () {
-                      final navigator = Navigator.of(context);
-                      navigator.pop();
-                      unawaited(navigator.push(MaterialPageRoute<void>(builder: (_) => const CompanionPage())));
-                    },
-                  ),
+                  if (showEntertainment)
+                    SettingsTile(
+                      icon: AppIcons.pet,
+                      tinted: false,
+                      title: l10n.companionTitle,
+                      subtitle: l10n.companionEntrySubtitle,
+                      onTap: () {
+                        final navigator = Navigator.of(context);
+                        navigator.pop();
+                        unawaited(navigator.push(MaterialPageRoute<void>(builder: (_) => const CompanionPage())));
+                      },
+                    ),
                   SettingsTile(
                     icon: ssh.isEmpty && relayHosts.isEmpty ? AppIcons.add : AppIcons.configure,
                     tinted: false,

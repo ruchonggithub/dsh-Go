@@ -8876,6 +8876,12 @@ class L10nZh extends L10n {
   String get hubQuickPanelItemsNone => '没有选择，左滑不会打开';
 
   @override
+  String get settingsEntertainment => '娱乐内容';
+
+  @override
+  String get settingsEntertainmentHint => '关闭后隐藏所有娱乐入口';
+
+  @override
   String get launchScreenTitle => '启动画面';
 
   @override
@@ -16142,6 +16148,9 @@ class L10nZh extends L10n {
 
   @override
   String get searchKwCommunity => '交流群,QQ 群,论坛,反馈';
+
+  @override
+  String get searchKwEntertainment => '娱乐,娱乐内容,酒馆,伙伴,宠物,DS Bot,社区,论坛,分享,关闭娱乐';
 
   @override
   String get searchKwStar => 'GitHub,星标,点赞';

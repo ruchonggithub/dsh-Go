@@ -16,6 +16,7 @@ import '../../runtime/local_footprint.dart';
 import '../../state/bots_state.dart';
 import '../../state/connection_state.dart';
 import '../../state/engine_control.dart';
+import '../../state/entertainment_state.dart';
 import '../../state/hosts_state.dart';
 import '../../state/drawer_view_state.dart';
 import '../../state/session_attention_state.dart';
@@ -166,8 +167,13 @@ class SessionsDrawer extends ConsumerWidget {
                         ),
                       ),
                       // 模式 and 网页模式, quietly: the one solid element stays 新对话.
-                      const ModeKey(),
-                      const SizedBox(width: 8),
+                      // Entertainment off: 模式 has nothing to switch between, so
+                      // the key and its gap both go (ModeKey already draws
+                      // nothing; the gap would still be there).
+                      if (ref.watch(entertainmentEnabledProvider)) ...[
+                        const ModeKey(),
+                        const SizedBox(width: 8),
+                      ],
                       const WebModeKey(tier: GlassTier.pill),
                       const SizedBox(width: 8),
                       // When even the lockup's room is not enough, 新对话
@@ -487,9 +493,11 @@ class _SessionList extends ConsumerWidget {
       return const _SkeletonList();
     }
     // DS Bot's conversations (its Bots' chats, groups, members' sessions)
-    // fold into one row that opens the Bot pages.
+    // fold into one row that opens the Bot pages. Entertainment off: the row is
+    // not offered, and its conversations do not count toward "not empty".
+    final entertainment = ref.watch(entertainmentEnabledProvider);
     final botReady = ref.watch(dsBotProvider.select((s) => s.ready));
-    final showBots = scope.bots.isNotEmpty || (workspace == null && botReady);
+    final showBots = entertainment && (scope.bots.isNotEmpty || (workspace == null && botReady));
     if (scope.sessions.isEmpty && !showBots && ref.watch(drawerViewProvider).folders.isEmpty) {
       if (scope.readOnly) return _Centered(child: Text(readListStatusText(scope.status)));
       return workspace == null ? const _EmptyState() : const _WorkspaceEmptyState();

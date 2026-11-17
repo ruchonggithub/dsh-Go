@@ -32,6 +32,7 @@ import '../../links/share_intake.dart';
 import '../../pets/overlay_channel.dart' show petOverlayChannelProvider;
 import '../../pets/pet_overlay_bridge.dart';
 import '../../state/compose_inbox.dart';
+import '../../state/entertainment_state.dart';
 import '../../state/hosts_state.dart';
 import '../../state/sessions_state.dart';
 import '../../state/settings_state.dart';
@@ -153,6 +154,8 @@ class _WebHomeState extends ConsumerState<WebHome> {
   Widget build(BuildContext context) {
     final access = ref.watch(dshWebAccessProvider);
     final phoneLayout = ref.watch(settingsProvider.select((s) => s.webPhoneLayout));
+    // Entertainment off: forum links are not registered, as on the native home.
+    final showEntertainment = ref.watch(entertainmentEnabledProvider);
     final Widget page = switch (access) {
       LocalDshWeb() => LocalWebScreen(handle: _handle, link: _link, onSession: _onSession),
       SshDshWeb(:final url, :final hostName) => WebViewPage(
@@ -176,7 +179,13 @@ class _WebHomeState extends ConsumerState<WebHome> {
     return ChatAlertHost(
       child: Stack(
         fit: StackFit.expand,
-        children: [page, const LinkHost(), const WebEntryHost(), const ForumLinkHost(), const _PetHost()],
+        children: [
+          page,
+          const LinkHost(),
+          const WebEntryHost(),
+          if (showEntertainment) const ForumLinkHost(),
+          const _PetHost(),
+        ],
       ),
     );
   }

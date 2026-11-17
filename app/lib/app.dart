@@ -10,6 +10,7 @@ import 'performance/performance_state.dart';
 import 'performance/refresh_rate.dart';
 import 'state/app_info.dart';
 import 'state/appearance_state.dart';
+import 'state/entertainment_state.dart' show entertainmentEnabledProvider;
 import 'state/locale_state.dart';
 import 'state/star_prompt.dart' show starPromptGateProvider, starPromptProvider;
 import 'state/tile_style_state.dart';
@@ -59,10 +60,14 @@ class _DshAppState extends ConsumerState<DshApp> with WidgetsBindingObserver {
     // Anonymous usage statistics live as long as the app, in either 界面
     // (release builds: today is noted, and earlier days go out).
     ref.read(usageStatsProvider);
-    // 公测版: the star prompt counts time in front from launch, in either 界面.
-    if (ref.read(starPromptGateProvider)) ref.read(starPromptProvider);
-    // 伙伴小屋: her invitation ledger is read now, so it is known before the room opens.
-    ref.read(companionInitiativeProvider);
+    // The entertainment half's launch work is skipped while it is off, not just
+    // hidden: both of these send or schedule something, and a switch that only
+    // hides screens would keep doing that in the background.
+    if (ref.read(entertainmentEnabledProvider)) _startEntertainmentLaunchWork(ref);
+    // Turning the half on later still gets its launch work, without a restart.
+    ref.listen<bool>(entertainmentEnabledProvider, (was, now) {
+      if (now && was != true) _startEntertainmentLaunchWork(ref);
+    });
     // 刷新率: some systems cap third-party apps at 60 Hz and then show their per-app
     // switch as an in-app setting; the app answers frames to run at the fastest rate
     // while it is actually drawing (see RefreshRateService).
@@ -74,6 +79,19 @@ class _DshAppState extends ConsumerState<DshApp> with WidgetsBindingObserver {
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
+  }
+
+  /// What the entertainment half does at launch.
+  ///
+  /// Both of these reach the network or the session store: the star prompt
+  /// counts time in front, and the companion reads her invitation ledger. They
+  /// are started only while 设置 › 娱乐内容 is on, so turning it off stops work
+  /// instead of hiding finished work.
+  static void _startEntertainmentLaunchWork(WidgetRef ref) {
+    // 公测版: the star prompt counts time in front from launch, in either 界面.
+    if (ref.read(starPromptGateProvider)) ref.read(starPromptProvider);
+    // 伙伴小屋: her invitation ledger is read now, so it is known before the room opens.
+    ref.read(companionInitiativeProvider);
   }
 
   /// 跟随系统: the system language changed while the app was open.

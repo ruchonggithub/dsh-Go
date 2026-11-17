@@ -218,6 +218,9 @@ void main() {
           ),
         ],
       ),
+      // 社区 is the play half: it shows only while 设置 › 娱乐内容 is on, and
+      // tests run with the switch's default (off).
+      absent: {'community'},
     );
   });
 

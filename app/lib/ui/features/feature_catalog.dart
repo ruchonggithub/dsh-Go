@@ -9,10 +9,10 @@ import 'package:dsh_client/dsh_client.dart' show PluginBundle;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../links/removed_links.dart' show forumEnabled;
 import '../../l10n/l10n.dart';
 import '../../plugins/native/native_icons.dart';
 import '../../plugins/native/native_state.dart';
+import '../../state/entertainment_state.dart' show entertainmentEnabledProvider;
 import '../../plugins/seams/seams.dart';
 import '../../state/plugins_state.dart';
 import '../common/feature_tile.dart';
@@ -63,6 +63,7 @@ class FeatureItem {
     this.web,
     this.needsSession = false,
     this.webInSession = false,
+    this.entertainment = false,
   }) : _localizedTitle = null,
        _localizedSummary = null,
        assert(native != null || action != null || web != null);
@@ -78,6 +79,7 @@ class FeatureItem {
     this.web,
     this.needsSession = false,
     this.webInSession = false,
+    this.entertainment = false,
   }) : _title = '',
        _summary = '',
        _localizedTitle = title,
@@ -116,6 +118,12 @@ class FeatureItem {
 
   /// The web page belongs to the open conversation: open it there first.
   final bool webInSession;
+
+  /// This entry is play, not work: hidden while 设置 › 娱乐内容 is off.
+  ///
+  /// The rule is a property of the item rather than a condition at each call
+  /// site, so a new entertainment entry cannot be added and forgotten.
+  final bool entertainment;
 
   /// The app has its own page or flow for it.
   bool get hasNative => native != null || action != null;
@@ -322,27 +330,34 @@ final featureSections = <FeatureSection>[
     ),
   ]),
   FeatureSection.localized((l10n) => l10n.catalogCommunitySharingSection, [
-    // The forum and the community page that fronts it are off in this build
-    // (removed_links.dart): both exist to reach forum.dshtui.com.
-    if (forumEnabled)
-      FeatureItem.localized(
-        id: 'forum',
-        title: (l10n) => l10n.catalogForum,
-        summary: (l10n) => l10n.catalogForumSummary,
-        icon: AppIcons.forum,
-        native: (_) => const ForumHomePage(),
-      ),
-    if (forumEnabled)
-      FeatureItem.localized(
-        id: 'community',
-        title: (l10n) => l10n.catalogCommunity,
-        summary: (l10n) => l10n.catalogCommunitySummary,
-        icon: AppIcons.community,
-        tile: FeatureKind.community,
-        native: (_) => communityPage(),
-      ),
+    // The forum and the community page that fronts it are always in the
+    // catalog and gated by 设置 › 娱乐内容 like the rest of the play half. They
+    // are listed here unconditionally so that `dshgo://open/forum` still
+    // resolves to a page — the resolver returns null when the switch is off,
+    // which is the existing "link cannot be opened" path, rather than an id
+    // nobody recognises. Whether the forum's server may be talked to is a
+    // separate question, answered by the build-time flags in
+    // `links/removed_links.dart`.
+    FeatureItem.localized(
+      id: 'forum',
+      entertainment: true,
+      title: (l10n) => l10n.catalogForum,
+      summary: (l10n) => l10n.catalogForumSummary,
+      icon: AppIcons.forum,
+      native: (_) => const ForumHomePage(),
+    ),
+    FeatureItem.localized(
+      id: 'community',
+      entertainment: true,
+      title: (l10n) => l10n.catalogCommunity,
+      summary: (l10n) => l10n.catalogCommunitySummary,
+      icon: AppIcons.community,
+      tile: FeatureKind.community,
+      native: (_) => communityPage(),
+    ),
     FeatureItem.localized(
       id: 'ds-bot',
+      entertainment: true,
       title: (_) => 'DS Bot',
       summary: (l10n) => l10n.catalogBotSummary,
       icon: AppIcons.bot,
@@ -350,6 +365,7 @@ final featureSections = <FeatureSection>[
     ),
     FeatureItem.localized(
       id: 'share-profile',
+      entertainment: true,
       title: (l10n) => l10n.catalogShareProfile,
       summary: (l10n) => l10n.catalogShareProfileSummary,
       icon: AppIcons.shareConfig,
@@ -427,12 +443,15 @@ String get pluginFeatureSection => appL10n.catalogPlugins;
 /// 全部功能's sections, with an entry per plugin panel the host has (`main`)
 /// at the end of 插件. Exactly [featureSections] without one.
 final featureSectionsProvider = Provider.autoDispose<List<FeatureSection>>((ref) {
+  // 设置 › 娱乐内容. Off hides the play entries; the pages behind them stay
+  // compiled, so this shortens the list rather than unpicking the app.
+  final entertainment = ref.watch(entertainmentEnabledProvider);
+
   final plan = ref.watch(seatPlanProvider(const SeatRequest(slot: Slots.main, placement: SeatPlacement.page)));
   final items = plan.visible;
-  if (items.isEmpty) return featureSections;
-  final bundles = ref.watch(installedPluginsProvider.select((s) => s.value));
-  final inventory = ref.watch(seatInventoryProvider);
-  final panels = [
+  final bundles = items.isEmpty ? null : ref.watch(installedPluginsProvider.select((s) => s.value));
+  final inventory = items.isEmpty ? null : ref.watch(seatInventoryProvider);
+  final panels = <FeatureItem>[
     for (final item in items)
       pluginPanelFeature(
         item,
@@ -442,17 +461,35 @@ final featureSectionsProvider = Provider.autoDispose<List<FeatureSection>>((ref)
         owner: item.mode == SeatMode.native ? ref.watch(nativePluginTitleProvider(item.occupant.package)) : null,
       ),
   ];
-  return [
-    for (final section in featureSections)
-      section.items.any((item) => item.id == 'plugins')
-          ? FeatureSection.localized(
-              (l10n) => l10n.catalogPlugins,
-              [...section.items, ...panels],
+
+  /// [items] with the entertainment entries dropped when the switch is off.
+  /// Returns the same list object when nothing is hidden, so the common case
+  /// does not rebuild every section.
+  List<FeatureItem> shown(List<FeatureItem> all) {
+    if (entertainment) return all;
+    final kept = [for (final item in all) if (!item.entertainment) item];
+    return kept.length == all.length ? all : kept;
+  }
+
+  final out = <FeatureSection>[];
+  for (final section in featureSections) {
+    final base = shown(section.items);
+    // Plugin panels ride along with the 插件 section; that section is core, so
+    // the switch never removes it.
+    final kept = section.items.any((item) => item.id == 'plugins') ? [...base, ...panels] : base;
+    if (kept.isEmpty) continue;
+    out.add(
+      identical(kept, section.items)
+          ? section
+          : FeatureSection.localized(
+              (l10n) => section.titleIn(l10n),
+              kept,
               note: section.note,
               id: section.id,
-            )
-          : section,
-  ];
+            ),
+    );
+  }
+  return out;
 });
 
 /// One plugin panel as an entry: its native or island page, or DSH Web (the

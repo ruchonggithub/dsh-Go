@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../l10n/l10n.dart';
 import '../../state/app_mode_state.dart';
 import '../../state/attachments.dart' show formatBytes;
+import '../../state/entertainment_state.dart';
 import '../../state/settings_state.dart';
 import '../../tavern/tavern_generation.dart';
 import '../../tavern/tavern_provider.dart';
@@ -56,6 +57,10 @@ List<Widget> tavernSettingsGroups(BuildContext context, WidgetRef ref) {
   final stTheme = ref.watch(tavernStThemeProvider);
   final hasKey = ref.watch(settingsProvider.select((s) => s.hasApiKey));
   final startup = ref.watch(appModeProvider.select((s) => s.startup));
+  // Entertainment off: 酒馆 is reached by a link rather than the 模式 switch, so
+  // this room still opens — but its 「启动时进入」 row would offer a mode that
+  // is no longer there, so it goes (the mode sheet hides the rest itself).
+  final showEntertainment = ref.watch(entertainmentEnabledProvider);
   final controller = ref.read(tavernSettingsProvider.notifier);
   final defaultPersona = ref.watch(tavernPersonaSelectionProvider(null)).value?.persona;
   final generation = ref.watch(tavernGenerationProvider).value ?? TavernGeneration.standard;
@@ -425,7 +430,16 @@ List<Widget> tavernSettingsGroups(BuildContext context, WidgetRef ref) {
       ),
     ],
   );
-  return [model, generating, const TavernToolPolicyGroup(), display, safety, data, you, startupGroup];
+  return [
+    model,
+    generating,
+    const TavernToolPolicyGroup(),
+    display,
+    safety,
+    data,
+    you,
+    if (showEntertainment) startupGroup,
+  ];
 }
 
 /// What the room goes to, part by part.

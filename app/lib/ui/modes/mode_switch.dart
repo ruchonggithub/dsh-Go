@@ -12,6 +12,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../l10n/l10n.dart';
 import '../../state/app_mode_state.dart';
+import '../../state/entertainment_state.dart';
 import '../common/app_sheet.dart';
 import '../common/sheet_title_bar.dart';
 import '../companion/companion_page.dart';
@@ -87,6 +88,10 @@ class ModeSheet extends ConsumerWidget {
     final l10n = context.l10n;
     final scheme = Theme.of(context).colorScheme;
     final startup = ref.watch(appModeProvider.select((s) => s.startup));
+    // Entertainment off: 伙伴 and 酒馆 are not offered, and neither is a startup
+    // choice between them. 工作 stays, so the list is never empty.
+    final showEntertainment = ref.watch(entertainmentEnabledProvider);
+    final modes = showEntertainment ? AppMode.values : const [AppMode.work];
     String subtitle(AppMode mode) => switch (mode) {
       AppMode.work => l10n.modeWorkSubtitle,
       AppMode.companion => l10n.companionEntrySubtitle,
@@ -102,7 +107,7 @@ class ModeSheet extends ConsumerWidget {
           SheetGroup(
             margin: const EdgeInsets.fromLTRB(SheetTitleBar.inset, 0, SheetTitleBar.inset, 12),
             children: [
-              for (final mode in AppMode.values)
+              for (final mode in modes)
                 Semantics(
                   key: ValueKey('mode-row-${mode.name}'),
                   selected: mode == current,
@@ -120,19 +125,20 @@ class ModeSheet extends ConsumerWidget {
                 ),
             ],
           ),
-          SheetGroup(
-            margin: const EdgeInsets.fromLTRB(SheetTitleBar.inset, 0, SheetTitleBar.inset, 12),
-            children: [
-              SettingsSegmentTile<AppMode>(
-                key: const ValueKey('mode-startup'),
-                title: l10n.modeStartup,
-                tinted: false,
-                segments: [for (final mode in AppMode.values) PillSegment(mode, appModeShortLabel(l10n, mode))],
-                selected: startup,
-                onChanged: (mode) => unawaited(ref.read(appModeProvider.notifier).setStartup(mode)),
-              ),
-            ],
-          ),
+          if (showEntertainment)
+            SheetGroup(
+              margin: const EdgeInsets.fromLTRB(SheetTitleBar.inset, 0, SheetTitleBar.inset, 12),
+              children: [
+                SettingsSegmentTile<AppMode>(
+                  key: const ValueKey('mode-startup'),
+                  title: l10n.modeStartup,
+                  tinted: false,
+                  segments: [for (final mode in AppMode.values) PillSegment(mode, appModeShortLabel(l10n, mode))],
+                  selected: startup,
+                  onChanged: (mode) => unawaited(ref.read(appModeProvider.notifier).setStartup(mode)),
+                ),
+              ],
+            ),
           const SizedBox(height: 4),
         ],
       ),
@@ -148,7 +154,9 @@ String appModeShortLabel(L10n l10n, AppMode mode) => switch (mode) {
 };
 
 /// The drawer's key to 模式, beside 网页模式.
-class ModeKey extends StatelessWidget {
+///
+/// Entertainment off: there is nothing to switch between, so the key goes.
+class ModeKey extends ConsumerWidget {
   const ModeKey({super.key, this.current = AppMode.work, this.size = 36, this.tier = GlassTier.pill});
 
   final AppMode current;
@@ -156,14 +164,17 @@ class ModeKey extends StatelessWidget {
   final GlassTier tier;
 
   @override
-  Widget build(BuildContext context) => GlassIconButton(
-    key: const ValueKey('mode-key'),
-    icon: AppIcons.modes,
-    tooltip: context.l10n.modeKeyTooltip,
-    size: size,
-    tier: tier,
-    onPressed: () => unawaited(showModeSheet(context, current: current)),
-  );
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (!ref.watch(entertainmentEnabledProvider)) return const SizedBox.shrink();
+    return GlassIconButton(
+      key: const ValueKey('mode-key'),
+      icon: AppIcons.modes,
+      tooltip: context.l10n.modeKeyTooltip,
+      size: size,
+      tier: tier,
+      onPressed: () => unawaited(showModeSheet(context, current: current)),
+    );
+  }
 }
 
 /// Opens the startup mode once per launch, before the home shows: until then
@@ -192,9 +203,15 @@ class _ModeLaunchState extends ConsumerState<ModeLaunch> {
   Widget build(BuildContext context) {
     final mode = ref.watch(appModeProvider);
     final launched = ref.watch(modeLaunchedProvider);
+    // The switch reads back from prefs asynchronously; its default is off. Both
+    // answers have to be in before the launch can be decided, or a person who
+    // turned entertainment on and starts in 酒馆 would land in 工作 instead.
+    final entertainment = ref.watch(entertainmentProvider);
     if (launched) return widget.child;
-    if (!mode.loaded) return const AppBackdrop(child: SizedBox.expand());
-    if (mode.startup == AppMode.work) {
+    if (!mode.loaded || !entertainment.loaded) return const AppBackdrop(child: SizedBox.expand());
+    // Entertainment off: a startup stored as 伙伴 or 酒馆 no longer opens —
+    // those pages are not offered — so the launch lands in 工作 like anyone's.
+    if (mode.startup == AppMode.work || !entertainment.enabled) {
       WidgetsBinding.instance.addPostFrameCallback((_) => ref.read(modeLaunchedProvider.notifier).mark());
       return widget.child;
     }

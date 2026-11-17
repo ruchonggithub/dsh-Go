@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../l10n/l10n.dart';
+import '../state/entertainment_state.dart' show entertainmentEnabledProvider;
 import 'discourse_client.dart';
 import 'forum_auth.dart';
 import 'forum_config.dart';
@@ -101,6 +102,12 @@ Future<T> _guard<T>(Ref ref, ForumApi api, Future<T> Function() read) async {
 // ── Site ─────────────────────────────────────────────────────────────────────
 
 final forumSiteProvider = FutureProvider<ForumSite>((ref) {
+  // 设置 › 娱乐内容 off: the forum's screens are hidden, and nothing here should
+  // reach the forum host either. Every other forum provider hangs off this one
+  // or off a page that the switch removes.
+  if (!ref.watch(entertainmentEnabledProvider)) {
+    throw StateError('forum is off (设置 › 娱乐内容)');
+  }
   final api = ref.watch(forumApiProvider);
   return _guard(ref, api, api.site);
 });

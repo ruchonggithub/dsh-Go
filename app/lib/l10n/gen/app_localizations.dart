@@ -16370,6 +16370,18 @@ abstract class L10n {
   /// **'没有选择，左滑不会打开'**
   String get hubQuickPanelItemsNone;
 
+  /// No description provided for @settingsEntertainment.
+  ///
+  /// In zh, this message translates to:
+  /// **'娱乐内容'**
+  String get settingsEntertainment;
+
+  /// No description provided for @settingsEntertainmentHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'关闭后隐藏所有娱乐入口'**
+  String get settingsEntertainmentHint;
+
   /// No description provided for @launchScreenTitle.
   ///
   /// In zh, this message translates to:
@@ -29527,6 +29539,12 @@ abstract class L10n {
   /// In zh, this message translates to:
   /// **'交流群,QQ 群,论坛,反馈'**
   String get searchKwCommunity;
+
+  /// No description provided for @searchKwEntertainment.
+  ///
+  /// In zh, this message translates to:
+  /// **'娱乐,娱乐内容,酒馆,伙伴,宠物,DS Bot,社区,论坛,分享,关闭娱乐'**
+  String get searchKwEntertainment;
 
   /// No description provided for @searchKwStar.
   ///

@@ -15,6 +15,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../state/entertainment_state.dart';
 import '../ui/companion/companion_page.dart';
 import '../ui/features/feature_catalog.dart';
 import '../ui/settings/index/settings_pages.dart';
@@ -80,8 +81,21 @@ Widget? pageForId(String id, String? sessionId) {
 
 typedef PageResolver = Widget? Function(String id, String? sessionId);
 
+/// Pages that belong to the entertainment half (`state/entertainment_state.dart`):
+/// closed while the switch is off, open while it is on.
+const _entertainmentPageIds = <String>{companionPageLink, tavernPageLink};
+
 /// [pageForId] (tests swap in light pages).
-final pageLinkResolverProvider = Provider<PageResolver>((ref) => pageForId);
+///
+/// Entertainment off: a link to one of [_entertainmentPageIds] resolves to
+/// nothing, so the router takes its usual failure path — the page does not
+/// open and 「无法打开这个链接」 is shown. The switch is read at call time, not
+/// when this provider is built: [LinkHost] reads the resolver once at startup,
+/// and the preference can change afterwards.
+final pageLinkResolverProvider = Provider<PageResolver>(
+  (ref) => (id, sessionId) =>
+      _entertainmentPageIds.contains(id) && !ref.read(entertainmentEnabledProvider) ? null : pageForId(id, sessionId),
+);
 
 /// Routes `dshgo://open/…` to its page, pushed over the home route. [session]
 /// reads the conversation open in the chat. Returns the unregister function.

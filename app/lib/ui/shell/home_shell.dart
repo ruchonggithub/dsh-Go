@@ -14,6 +14,7 @@ import '../../pets/overlay_channel.dart' show petOverlayChannelProvider;
 import '../../pets/pet_overlay_bridge.dart';
 import '../../state/adaptive_layout_state.dart';
 import '../../state/drawer_view_state.dart' show drawerSelectionProvider;
+import '../../state/entertainment_state.dart';
 import '../../state/quick_panel_state.dart';
 import '../../state/sessions_state.dart' show currentSessionProvider;
 import '../bots/bot_alerts.dart';
@@ -281,6 +282,9 @@ class _HomeShellState extends ConsumerState<HomeShell> with TickerProviderStateM
     final width = _drawerWidth(context);
     final sessionId = ref.watch(currentSessionProvider);
     final prefs = ref.watch(layoutPrefsProvider);
+    // Entertainment off: the hosts that only serve the entertainment half (the
+    // star invitation, 酒馆's character cards, forum links) are not mounted.
+    final showEntertainment = ref.watch(entertainmentEnabledProvider);
     // Multi-select in a list on screen (the open drawer, or the sidebar):
     // back ends it before anything else.
     final selecting = ref.watch(drawerSelectionProvider.select((s) => s != null));
@@ -344,17 +348,17 @@ class _HomeShellState extends ConsumerState<HomeShell> with TickerProviderStateM
                       // The voice model chosen during setup: download, resume, ready / failed notices (draws nothing).
                       const VoiceModelHost(),
                       // 公测版: once in a while, an invitation to star the project (draws nothing).
-                      StarPromptHost(drawer: _drawer, quickPanel: _quickPanel),
+                      if (showEntertainment) StarPromptHost(drawer: _drawer, quickPanel: _quickPanel),
                       // App links / shared files: routes them to their feature (draws nothing).
                       const LinkHost(),
                       // Share codes (分享码): registers its links and files with the router.
                       const ShareCodeHost(),
                       // Character cards opened with the app: into 酒馆.
-                      const TavernIntakeHost(),
+                      if (showEntertainment) const TavernIntakeHost(),
                       // Share sheet, launcher shortcuts, the tile: into the chat (draws nothing).
                       SystemEntryHost(onReveal: _revealChat),
                       // Forum links (sign-in return, topics): registers them with the router.
-                      const ForumLinkHost(),
+                      if (showEntertainment) const ForumLinkHost(),
                       // DS Bot: keeps its feed and notifications alive with the shell.
                       const BotAlertsHost(),
                       ExcludeSemantics(

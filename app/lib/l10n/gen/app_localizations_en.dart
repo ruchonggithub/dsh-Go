@@ -9368,6 +9368,12 @@ class L10nEn extends L10n {
   String get hubQuickPanelItemsNone => 'Nothing chosen: a left swipe won\'t open it';
 
   @override
+  String get settingsEntertainment => 'Entertainment';
+
+  @override
+  String get settingsEntertainmentHint => 'Off hides every play entry';
+
+  @override
   String get launchScreenTitle => 'Launch screen';
 
   @override
@@ -16985,6 +16991,10 @@ class L10nEn extends L10n {
 
   @override
   String get searchKwCommunity => 'group,forum,feedback,chat group';
+
+  @override
+  String get searchKwEntertainment =>
+      'entertainment,fun,tavern,companion,pets,ds bot,community,forum,sharing,hide entertainment';
 
   @override
   String get searchKwStar => 'github,star';

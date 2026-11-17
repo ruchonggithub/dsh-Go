@@ -610,6 +610,17 @@ abstract final class Spots {
     keywords: (l) => l.searchKwCommunity,
   );
 
+  /// 设置 › 娱乐内容: the one switch over the app's play half. It sits in 通用
+  /// because it decides what the app offers, not how it looks.
+  static final entertainment = SettingSpot(
+    'entertainment',
+    page: SettingsPageId.hub,
+    group: _general,
+    title: (l) => l.settingsEntertainment,
+    keywords: (l) => l.searchKwEntertainment,
+    link: 'entertainment',
+  );
+
   // 模型.
   static final addProvider = SettingSpot(
     'add-provider',
@@ -1094,6 +1105,7 @@ final _rows = <SettingSpot>[
   Spots.language,
   Spots.askAi,
   Spots.community,
+  Spots.entertainment,
   Spots.addProvider,
   Spots.permissionCurrent,
   Spots.permissionDefault,

@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../update/update_config.dart' show updateRepo;
 import '../update/update_http.dart';
+import 'entertainment_state.dart' show entertainmentEnabledProvider;
 
 /// The 社区 hub's content: picked plugins, prompt ideas, group links and
 /// news, curated by the maintainers in `community.json` at the root of the
@@ -284,6 +285,10 @@ class CommunityController extends AsyncNotifier<CommunityState> {
       }
     }
     best = best.copyWith(fetchedAt: fetchedAt);
+    // 设置 › 娱乐内容 off: show what is bundled and cached, but make no request.
+    // The page is hidden in that state, so this guard is what keeps a feed
+    // refresh from going out anyway if something else reads the provider.
+    if (!ref.watch(entertainmentEnabledProvider)) return best;
     final now = ref.read(communityClockProvider)();
     final due = fetchedAt == null || now.isBefore(fetchedAt) || now.difference(fetchedAt) >= communityRefreshInterval;
     if (due) Future.microtask(refresh);
@@ -293,6 +298,8 @@ class CommunityController extends AsyncNotifier<CommunityState> {
   /// Asks the sources (preferred one first) for a newer feed. Quiet on
   /// failure: the hub keeps what it shows.
   Future<void> refresh() async {
+    // The switch can be turned off between build() and this call.
+    if (!ref.read(entertainmentEnabledProvider)) return;
     final current = state.value ?? await future;
     if (current.refreshing) return;
     state = AsyncData(current.copyWith(refreshing: true));

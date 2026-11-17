@@ -12,6 +12,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../l10n/l10n.dart';
 import '../../state/app_mode_state.dart';
 import '../../state/engine_settings_state.dart';
+import '../../state/entertainment_state.dart';
 import '../../state/quick_panel_state.dart';
 import '../../state/settings_state.dart';
 import '../../state/table_tint_state.dart';
@@ -52,21 +53,25 @@ class InterfacePage extends ConsumerWidget {
     final engine = ref.watch(engineSettingsProvider).value;
     final quickPanel = ref.watch(quickPanelProvider);
     final startup = ref.watch(appModeProvider.select((s) => s.startup));
+    // Entertainment off: only 工作 is offered, so a 模式 section with a
+    // one-segment control (and nothing to choose) is left out whole.
+    final showEntertainment = ref.watch(entertainmentEnabledProvider);
     return AppPage.list(
       title: l10n.hubSettingsInterface,
       children: [
-        SettingsSection(
-          title: l10n.modeSheetTitle,
-          children: [
-            SettingsSegmentTile<AppMode>(
-              key: const ValueKey('interface-startup-mode'),
-              title: l10n.modeStartup,
-              segments: [for (final m in AppMode.values) PillSegment(m, appModeShortLabel(l10n, m))],
-              selected: startup,
-              onChanged: (m) => unawaited(ref.read(appModeProvider.notifier).setStartup(m)),
-            ),
-          ],
-        ),
+        if (showEntertainment)
+          SettingsSection(
+            title: l10n.modeSheetTitle,
+            children: [
+              SettingsSegmentTile<AppMode>(
+                key: const ValueKey('interface-startup-mode'),
+                title: l10n.modeStartup,
+                segments: [for (final m in AppMode.values) PillSegment(m, appModeShortLabel(l10n, m))],
+                selected: startup,
+                onChanged: (m) => unawaited(ref.read(appModeProvider.notifier).setStartup(m)),
+              ),
+            ],
+          ),
         SettingsSection(
           title: l10n.hubInterfaceHome,
           spot: Spots.uiMode,

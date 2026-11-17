@@ -1,26 +1,27 @@
-/// Which third-party services this build talks to.
+/// Which of the app's optional halves this build offers.
 ///
-/// The app is the upstream client with its optional external links removed.
-/// "Removed" here means *not offered*: no entry point in the UI, no request
-/// made. The implementing code stays in the tree, so restoring a feature is a
-/// one-line change of the constant below rather than a rewrite.
+/// Two different ideas live here, and they are deliberately separate:
 ///
-/// What stays on, because the app cannot work without it:
+/// - **Entertainment** is a runtime preference
+///   (`state/entertainment_state.dart`): tavern, companion, pets, bots, the
+///   community page and forum, wallpapers, share posters, replay, and the
+///   effects around them. The person turns it on or off in 设置; the code is
+///   always compiled. Nothing here decides that.
+/// - **Links to the project's servers** are build-time constants below. They
+///   are about where the app is allowed to talk, not about what it offers.
+///
+/// What stays on regardless, because the app does not work without it:
 /// - the model provider the person configures (DeepSeek or their own endpoint);
 /// - GitHub releases, the only source updates are checked against;
 /// - a DSH Remote server the person adds by address themselves.
-///
-/// What is off in this build:
-/// - the project's forum (`forum.dshtui.com`) and everything that signs in to
-///   it, including the workshop/plugin market it authorises;
-/// - the project's own update copy, its beta channel and the public GitHub
-///   accelerators — updates now come from GitHub alone;
-/// - the hosted DSH Remote server (`dsh.r2049.cn`), so a Remote host has to be
-///   entered by hand.
 library;
 
-/// The forum, and with it the workshop and plugin market that log in through
-/// it. Off: no forum screens, no requests to the forum host.
+/// The forum (`forum.dshtui.com`) and the workshop/plugin market that signs in
+/// through it.
+///
+/// Off in this build: no requests to the forum host, and its screens are gated
+/// by the entertainment switch like the rest of the community half. The code
+/// stays, so setting this to true is all a build needs to bring it back.
 const bool forumEnabled = false;
 
 /// The workshop (plugin market uploads, companion packages). Requires

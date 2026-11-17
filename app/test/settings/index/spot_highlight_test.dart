@@ -6,6 +6,7 @@
 import 'package:dsh_app/l10n/l10n.dart';
 import 'package:dsh_app/links/page_links.dart';
 import 'package:dsh_app/runtime/runtime_state.dart';
+import 'package:dsh_app/state/entertainment_state.dart';
 import 'package:dsh_app/state/settings_state.dart';
 import 'package:dsh_app/ui/settings/index/settings_pages.dart';
 import 'package:dsh_app/ui/settings/index/spot_anchor.dart';
@@ -127,12 +128,14 @@ void main() {
     usePhoneSurface(tester);
     final page = pageForId('chat-text-size', null);
     expect(page, isA<SpotFocus>());
-    // The hub's last group, by its spot.
+    // The hub's last group, by its spot. 社区 is part of the play half and only
+    // shows while 设置 › 娱乐内容 is on, so the test turns it on.
     await tester.pumpWidget(
       goldenApp(
         home: spotPage(Spots.community),
         brightness: Brightness.light,
         overrides: [
+          entertainmentEnabledProvider.overrideWithValue(true),
           localRuntimeProvider.overrideWith(
             () => FakeRuntime(const LocalRuntimeState(loaded: true, status: runningStatus)),
           ),

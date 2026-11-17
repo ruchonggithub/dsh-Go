@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../links/removed_links.dart' show forumEnabled;
 import '../../l10n/l10n.dart';
 import '../../runtime/local_footprint.dart';
 import '../../runtime/runtime_state.dart';
@@ -12,6 +11,7 @@ import '../../state/ask_ai.dart' show askAiAvailableProvider;
 import '../../state/balance_state.dart';
 import '../../state/connection_state.dart';
 import '../../state/engine_settings_state.dart';
+import '../../state/entertainment_state.dart';
 import '../../state/features_state.dart';
 import '../../state/hosts_state.dart';
 import '../../state/phone_state.dart';
@@ -236,6 +236,18 @@ class SettingsScreen extends ConsumerWidget {
               onTap: () => _push(context, const InterfacePage()),
             ),
             const LanguageSettingsTile(tint: SettingsHues.general),
+            // 娱乐内容: what the app offers, not how it looks, which is why it
+            // sits in 通用 and not 外观. Off hides the entries; the pages stay
+            // compiled for the next merge with upstream.
+            SettingsSwitchTile(
+              key: const ValueKey('settings-entertainment'),
+              icon: AppIcons.playVideo,
+              tint: SettingsHues.general,
+              spot: Spots.entertainment,
+              subtitle: l10n.settingsEntertainmentHint,
+              value: ref.watch(entertainmentEnabledProvider),
+              onChanged: (v) => unawaited(ref.read(entertainmentProvider.notifier).setEnabled(v)),
+            ),
             const NotificationSettingsTile(tint: SettingsHues.general),
             const VoiceSettingsTile(tint: SettingsHues.general),
             const PerformanceSettingsTile(tint: SettingsHues.general),
@@ -301,8 +313,9 @@ class SettingsScreen extends ConsumerWidget {
                 value: Text(l10n.askAiTooltip),
                 onTap: () => unawaited(askAi(context, AskAiTopic.overview)),
               ),
-            // Off in this build: the community page is the way into the forum.
-            if (forumEnabled)
+            // 设置 › 娱乐内容 off: the community page is part of the play half,
+            // so it follows that switch rather than the build-time forum flag.
+            if (ref.watch(entertainmentEnabledProvider))
               SettingsTile(
                 icon: AppIcons.community,
                 tint: SettingsHues.help,
