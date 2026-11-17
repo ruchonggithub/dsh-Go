@@ -83,18 +83,44 @@ typedef PageResolver = Widget? Function(String id, String? sessionId);
 
 /// Pages that belong to the entertainment half (`state/entertainment_state.dart`):
 /// closed while the switch is off, open while it is on.
+///
+/// [companionPageLink] and [tavernPageLink] have no catalog entry, so they are
+/// named here. The rest of the play half — forum, community, ds-bot — is a
+/// catalog entry like any other, and gets its answer from
+/// [entertainmentPageForId] rather than from a second list that could drift.
 const _entertainmentPageIds = <String>{companionPageLink, tavernPageLink};
+
+/// [pageForId] with the entertainment switch taken into account.
+///
+/// A closed entry resolves to null, which the router already treats as "cannot
+/// open this link". The id stays recognised: an old note's link fails honestly
+/// instead of being reported as a link the app does not know.
+Widget? entertainmentPageForId(String id, String? sessionId, {required bool allowed}) {
+  if (!allowed) {
+    if (_entertainmentPageIds.contains(id)) return null;
+    // A catalog entry marked `entertainment` is the play half too.
+    for (final section in featureSections) {
+      for (final item in section.items) {
+        if (item.id == id && item.entertainment) return null;
+      }
+    }
+  }
+  return pageForId(id, sessionId);
+}
 
 /// [pageForId] (tests swap in light pages).
 ///
-/// Entertainment off: a link to one of [_entertainmentPageIds] resolves to
-/// nothing, so the router takes its usual failure path — the page does not
-/// open and 「无法打开这个链接」 is shown. The switch is read at call time, not
-/// when this provider is built: [LinkHost] reads the resolver once at startup,
-/// and the preference can change afterwards.
+/// Entertainment off: a link to one of [_entertainmentPageIds], or to a catalog
+/// entry marked `entertainment`, resolves to nothing, so the router takes its
+/// usual failure path — the page does not open and 「无法打开这个链接」 is shown.
+/// The switch is read at call time, not when this provider is built: [LinkHost]
+/// reads the resolver once at startup, and the preference can change afterwards.
 final pageLinkResolverProvider = Provider<PageResolver>(
-  (ref) => (id, sessionId) =>
-      _entertainmentPageIds.contains(id) && !ref.read(entertainmentEnabledProvider) ? null : pageForId(id, sessionId),
+  (ref) => (id, sessionId) => entertainmentPageForId(
+    id,
+    sessionId,
+    allowed: ref.read(entertainmentEnabledProvider),
+  ),
 );
 
 /// Routes `dshgo://open/…` to its page, pushed over the home route. [session]

@@ -24,6 +24,7 @@ import '../../../plugins/native/native_effects.dart';
 import '../../../plugins/native/native_files.dart';
 import '../../../plugins/native/native_model.dart';
 import '../../../plugins/native/native_state.dart';
+import '../../../state/entertainment_state.dart' show entertainmentEnabledProvider;
 import '../../../plugins/native/native_surface.dart';
 import '../../../state/chat_state.dart';
 import '../../../state/composer_insert.dart';
@@ -772,6 +773,10 @@ Future<void> openNativePage(BuildContext context, WidgetRef ref, String page, {S
     }
     return;
   }
+  // A plugin's tap target can name an entertainment page. The catalog list here
+  // is the unfiltered one, so the switch is consulted explicitly rather than
+  // inferred from what is on screen.
+  if (item.entertainment && !ref.read(entertainmentEnabledProvider)) return;
   if (!context.mounted) return;
   if (item.needsSession && sessionId == null) {
     _toast(context, context.l10n.plugslotsNeedsChat);
