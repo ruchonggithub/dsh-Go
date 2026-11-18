@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../l10n/l10n.dart';
 import '../../runtime/local_footprint.dart';
 import '../../runtime/runtime_state.dart';
+import '../../state/settings_state.dart' show localDshEnabledProvider;
 import '../../state/connection_state.dart';
 import '../../state/entertainment_state.dart';
 import '../../state/hosts_state.dart';
@@ -106,8 +107,9 @@ class HostSheet extends ConsumerWidget {
     // 本机 without its runtime: the row installs it, and switches to it once
     // installed (leaving the install page keeps the current host). A build
     // without the runtime has no 本机 row at all.
-    final localMissing = ref.watch(localRuntimeProvider.select((s) => s.status.runtimeMissing));
-    final localAvailable = ref.watch(localRuntimeProvider.select((s) => s.available));
+    final localAvailable =
+        ref.watch(localDshEnabledProvider) && ref.watch(localRuntimeProvider.select((s) => s.available));
+    final localMissing = localAvailable && ref.watch(localRuntimeProvider.select((s) => s.status.runtimeMissing));
     void installLocal() {
       final navigator = Navigator.of(context);
       navigator.pop();

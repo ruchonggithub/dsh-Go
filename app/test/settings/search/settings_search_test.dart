@@ -39,7 +39,7 @@ List<Override> _overrides({HostRef host = HostRef.local}) => [
   activeHostProvider.overrideWith(() => FixedActiveHost(host)),
   hostsProvider.overrideWith(FixedHosts.new),
   localRuntimeProvider.overrideWith(() => FakeRuntime(const LocalRuntimeState(loaded: true, status: runningStatus))),
-  settingsProvider.overrideWith(() => FakeSettings(const AppSettings(loaded: true))),
+  settingsProvider.overrideWith(() => FakeSettings(const AppSettings(loaded: true, localDshEnabled: true))),
   guidePageReaderProvider.overrideWithValue((asset) async => '# 设置'),
 ];
 

@@ -4,6 +4,7 @@
 //   flutter test test/settings/quick_panel_settings_test.dart
 
 import 'package:dsh_app/state/quick_panel_state.dart';
+import 'package:dsh_app/state/settings_state.dart';
 import 'package:dsh_app/ui/settings/interface_page.dart';
 import 'package:dsh_app/ui/settings/quick_panel_items_sheet.dart';
 import 'package:dsh_app/ui/shell/sessions_drawer.dart' show DrawerDestination;
@@ -23,7 +24,10 @@ const _itemsRow = ValueKey('quick-panel-items');
 Future<void> _pump(WidgetTester tester) => engine.pumpPage(
   tester,
   const InterfacePage(),
-  overrides: engine.engineOverrides(DshClient.withCarrier(engine.FakeSettingsHost())),
+  overrides: engine.engineOverrides(
+    DshClient.withCarrier(engine.FakeSettingsHost()),
+    settings: const AppSettings(loaded: true, localDshEnabled: true),
+  ),
   height: 1600,
 );
 

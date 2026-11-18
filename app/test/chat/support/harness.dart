@@ -313,7 +313,7 @@ class FixedSession extends CurrentSessionController {
 
 /// Settings with a key, no storage behind them.
 class TestSettings extends SettingsController {
-  TestSettings([this.initial = const AppSettings(loaded: true, apiKey: testKey)]);
+  TestSettings([this.initial = const AppSettings(loaded: true, localDshEnabled: true, apiKey: testKey)]);
   final AppSettings initial;
 
   @override

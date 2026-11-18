@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../l10n/l10n.dart';
 import '../../state/quick_panel_state.dart';
+import '../../state/settings_state.dart' show localDshEnabledProvider;
 import '../common/app_sheet.dart';
 import '../common/list_page_row.dart';
 import '../common/sheet_title_bar.dart';
@@ -43,10 +44,16 @@ class _QuickPanelItemsSheetState extends ConsumerState<QuickPanelItemsSheet> {
     _save();
   }
 
-  void _move(int from, int to) {
+  void _move(List<DrawerDestination> visible, int from, int to) {
     setState(() {
-      final moved = _rows.removeAt(from);
-      _rows.insert(to.clamp(0, _rows.length), moved);
+      // Rearrange the visible rows and leave the hidden shortcut in place.
+      final moved = visible.removeAt(from);
+      visible.insert(to, moved);
+      final shown = visible.toSet();
+      var at = 0;
+      for (var i = 0; i < _rows.length; i++) {
+        if (shown.contains(_rows[i])) _rows[i] = visible[at++];
+      }
     });
     _save();
   }
@@ -56,6 +63,11 @@ class _QuickPanelItemsSheetState extends ConsumerState<QuickPanelItemsSheet> {
     final l10n = context.l10n;
     final scheme = Theme.of(context).colorScheme;
     final colors = DshColors.of(context);
+    final localDsh = ref.watch(localDshEnabledProvider);
+    final visible = [
+      for (final row in _rows)
+        if (localDsh || row != DrawerDestination.engine) row,
+    ];
     Widget row(DrawerDestination destination, int index) {
       final ticked = _ticked.contains(destination);
       return Semantics(
@@ -106,7 +118,7 @@ class _QuickPanelItemsSheetState extends ConsumerState<QuickPanelItemsSheet> {
                       shrinkWrap: true,
                       buildDefaultDragHandles: false,
                       padding: const EdgeInsets.symmetric(vertical: 4),
-                      itemCount: _rows.length,
+                      itemCount: visible.length,
                       // The lifted row keeps its glass look, a touch raised.
                       proxyDecorator: (child, _, animation) => AnimatedBuilder(
                         animation: animation,
@@ -120,8 +132,8 @@ class _QuickPanelItemsSheetState extends ConsumerState<QuickPanelItemsSheet> {
                         ),
                         child: child,
                       ),
-                      onReorderItem: _move,
-                      itemBuilder: (context, i) => row(_rows[i], i),
+                      onReorderItem: (from, to) => _move(visible, from, to),
+                      itemBuilder: (context, i) => row(visible[i], i),
                     ),
                   ),
                 ),

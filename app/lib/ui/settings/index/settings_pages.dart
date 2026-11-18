@@ -3,6 +3,9 @@
 // row is on.
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../state/settings_state.dart' show localDshEnabledProvider;
 
 import '../../account/account_page.dart';
 import '../../engine/engine_screen.dart';
@@ -49,7 +52,16 @@ export 'spots.dart';
 
 /// The page for [id]; [sessionId] is the conversation open in the chat (权限
 /// shows its preset).
-Widget settingsPage(SettingsPageId id, {String? sessionId}) => switch (id) {
+Widget settingsPage(SettingsPageId id, {String? sessionId}) {
+  final page = _settingsPage(id, sessionId: sessionId);
+  if (!SettingsIndex.localDshPages.contains(id)) return page;
+  return Consumer(
+    builder: (_, ref, _) =>
+        ref.watch(localDshEnabledProvider) ? page : SpotFocus(target: Spots.localDsh.id, child: const SettingsScreen()),
+  );
+}
+
+Widget _settingsPage(SettingsPageId id, {String? sessionId}) => switch (id) {
   SettingsPageId.hub => const SettingsScreen(),
   SettingsPageId.appearance => const AppearancePage(),
   SettingsPageId.pets => const PetSettingsPage(),

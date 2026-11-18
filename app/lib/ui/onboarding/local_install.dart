@@ -27,7 +27,8 @@ import 'runtime_setup_page.dart';
 /// Opens the install page over whatever is showing; the host list on a build
 /// without the runtime.
 Future<void> openLocalInstall(BuildContext context, {bool useWhenDone = false}) {
-  final available = ProviderScope.containerOf(context, listen: false).read(localRuntimeProvider).available;
+  final container = ProviderScope.containerOf(context, listen: false);
+  final available = container.read(localDshEnabledProvider) && container.read(localRuntimeProvider).available;
   return Navigator.of(context).push(
     MaterialPageRoute<void>(
       builder: (_) => available ? LocalInstallPage(useWhenDone: useWhenDone) : const RemoteScreen(),

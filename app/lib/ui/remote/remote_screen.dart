@@ -9,6 +9,7 @@ import '../../l10n/l10n.dart';
 import '../../remote/relay/relay_backend.dart';
 import '../../runtime/local_footprint.dart';
 import '../../runtime/runtime_state.dart';
+import '../../state/settings_state.dart' show localDshEnabledProvider;
 import '../../state/app_info.dart';
 import '../../state/connection_state.dart';
 import '../../state/hosts_state.dart';
@@ -38,7 +39,10 @@ import 'ssh_host_form.dart';
 /// it the active one; the chat and the session list follow. The old Remote
 /// Web console stays as a small fallback at the bottom.
 class RemoteScreen extends ConsumerWidget {
-  const RemoteScreen({super.key});
+  const RemoteScreen({super.key, this.onOpenSettings});
+
+  /// Supplied when this screen is the app landing page, not a pushed route.
+  final VoidCallback? onOpenSettings;
 
   void _openConsole(BuildContext context) {
     final l10n = context.l10n;
@@ -72,7 +76,7 @@ class RemoteScreen extends ConsumerWidget {
       return;
     }
     final ok = await activateHost(context, ref, host);
-    if (ok && navigator.mounted) navigator.maybePop();
+    if (ok && navigator.mounted && onOpenSettings == null) navigator.maybePop();
   }
 
   /// A host added while this phone has nothing to run on (no runtime, first
@@ -81,7 +85,7 @@ class RemoteScreen extends ConsumerWidget {
     final saved = await Navigator.of(context)
         .push<SshHostConfig>(MaterialPageRoute(builder: (_) => const SshHostFormPage()));
     if (saved == null || !context.mounted) return;
-    final nothingHere = ref.read(localRuntimeProvider).status.runtimeMissing;
+    final nothingHere = !ref.read(localDshEnabledProvider) || ref.read(localRuntimeProvider).status.runtimeMissing;
     if (nothingHere && ref.read(activeHostProvider).isLocal) await _use(context, ref, HostRef.ssh(saved.id));
   }
 
@@ -95,7 +99,13 @@ class RemoteScreen extends ConsumerWidget {
     return AppPage.list(
       title: l10n.commonRemoteHost,
       subtitle: Text(l10n.remoteHostsIntro),
-      actions: const [AskAiButton(AskAiTopic.remote)],
+      showBack: onOpenSettings == null,
+      actions: [
+        if (onOpenSettings case final open?)
+          GlassIconButton(icon: AppIcons.settings, tooltip: l10n.commonSettings, onPressed: open)
+        else
+          const AskAiButton(AskAiTopic.remote),
+      ],
       children: [
         _ActiveCard(active: active),
         _RelaySection(onUse: (h) => _use(context, ref, h)),
@@ -191,7 +201,8 @@ class _ActiveCard extends ConsumerWidget {
     void reconnect() => ref.read(remoteConnectionProvider(active).notifier).retry();
     final failed = status.phase == HostLinkPhase.failed && error != null;
     // No runtime on this phone: 本机 is nowhere to go back to.
-    final canGoLocal = ref.watch(localRuntimeProvider.select((s) => !s.status.runtimeMissing));
+    final canGoLocal =
+        ref.watch(localDshEnabledProvider) && ref.watch(localRuntimeProvider.select((s) => !s.status.runtimeMissing));
     return OverviewCard(
       leading: OverviewGlyph(hostKindIcon(active.kind), tint: hostKindTint(active.kind)),
       title: Text(l10n.remoteActiveHost(name)),

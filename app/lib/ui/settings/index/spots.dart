@@ -257,6 +257,12 @@ class SettingSpot {
 
 /// The index itself.
 abstract final class SettingsIndex {
+  static const localDshPages = {SettingsPageId.engine, SettingsPageId.linuxEnvironment};
+
+  static bool requiresLocalDsh(SettingSpot spot) =>
+      localDshPages.contains(spot.page) ||
+      localDshPages.contains(spot.opens) ||
+      spot.condition == SpotCondition.localHost;
   static final Map<SettingsPageId, SettingsPageMeta> pages = {for (final p in _pages) p.id: p};
 
   /// Rows that aren't page entries.
@@ -886,6 +892,14 @@ abstract final class Spots {
     link: 'productivity',
   );
 
+  static final localDsh = SettingSpot(
+    'local-dsh',
+    page: SettingsPageId.hub,
+    title: (l) => l.settingsLocalDsh,
+    group: _hosts,
+    link: 'local-dsh',
+  );
+
   // 宠物.
   static final petSize = SettingSpot(
     'pet-size',
@@ -1266,6 +1280,7 @@ final _rows = <SettingSpot>[
   Spots.launchScreen,
   Spots.wallpaper,
   Spots.productivity,
+  Spots.localDsh,
   Spots.petSize,
   Spots.petQuiet,
   Spots.petOutsideApp,

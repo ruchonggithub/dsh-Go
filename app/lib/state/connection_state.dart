@@ -68,6 +68,7 @@ class LocalConnectionController extends AsyncNotifier<HostConnection?> {
     // This build's ref: `ref` always points at the newest build, so only
     // `r.mounted` tells that a token change superseded this one.
     final r = ref;
+    if (!r.watch(localDshEnabledProvider)) return null;
     // Riverpod's own retries give up after a while; resume and network
     // changes try a failed connect again.
     final kicks = r.read(networkKicksProvider).listen((_) {

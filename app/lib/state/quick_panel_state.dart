@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'drawer_destination.dart';
+import 'settings_state.dart' show localDshEnabledProvider;
 
 class QuickPanelPrefs {
   const QuickPanelPrefs({this.swipe = true, this.items = defaultItems});
@@ -81,3 +82,11 @@ class QuickPanelController extends Notifier<QuickPanelPrefs> {
 }
 
 final quickPanelProvider = NotifierProvider<QuickPanelController, QuickPanelPrefs>(QuickPanelController.new);
+
+/// Hide local-only shortcuts without rewriting the person's configuration.
+final visibleQuickPanelProvider = Provider<QuickPanelPrefs>((ref) {
+  final prefs = ref.watch(quickPanelProvider);
+  return ref.watch(localDshEnabledProvider)
+      ? prefs
+      : prefs.copyWith(items: prefs.items.where((item) => item != DrawerDestination.engine).toList());
+});

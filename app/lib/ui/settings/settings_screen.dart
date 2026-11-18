@@ -26,6 +26,7 @@ import '../account/account_page.dart';
 import '../account/account_widgets.dart';
 import '../chat/balance_widgets.dart' show formatMoney;
 import '../common/ask_ai.dart';
+import '../common/brief_notice.dart';
 import '../common/overview_card.dart';
 import '../common/search_capsule.dart';
 import '../common/status_chip.dart';
@@ -89,12 +90,25 @@ class SettingsScreen extends ConsumerWidget {
   void _push(BuildContext context, Widget page) =>
       Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => page));
 
+  Future<void> _setLocalDsh(BuildContext context, bool enabled) async {
+    final container = ProviderScope.containerOf(context, listen: false);
+    await container.read(settingsProvider.notifier).setLocalDshEnabled(enabled);
+    if (enabled || container.read(localDshEnabledProvider) || !container.read(localRuntimeProvider).available) return;
+    // Start may already be queued even if the last status was `installed`.
+    // Send stop through the same native lifecycle; do not uninstall anything.
+    try {
+      await container.read(localRuntimeProvider.notifier).stop();
+    } catch (_) {
+      if (context.mounted) showBriefNotice(context, context.l10n.settingsLocalDshStopFailed);
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
     final settings = ref.watch(settingsProvider);
-    final runtime = ref.watch(localRuntimeProvider);
-    final engine = EngineStatusView.of(runtime);
+    final localDsh = settings.localDshEnabled;
+    final engine = localDsh ? EngineStatusView.of(ref.watch(localRuntimeProvider)) : null;
     final colors = DshColors.of(context);
     final notifier = ref.read(settingsProvider.notifier);
     final android = ref.watch(androidSystemFeaturesProvider);
@@ -129,6 +143,7 @@ class SettingsScreen extends ConsumerWidget {
     // 主机.
     final ssh = ref.watch(hostsProvider.select((s) => s.ssh.length));
     final hostName = host.isLocal ? l10n.commonThisPhone : ref.watch(hostNameProvider(host)) ?? l10n.commonRemoteHost;
+    final hasHost = localDsh || !host.isLocal;
     // 帮助与关于.
     final update = ref.watch(appUpdateProvider);
     final newVersion = update.hasUpdate && !update.isSkipped;
@@ -145,82 +160,85 @@ class SettingsScreen extends ConsumerWidget {
           ),
         ),
         const SettingsOverview(),
-        SettingsSection(
-          title: l10n.hubGroupAi,
-          children: [
-            SettingsTile(
-              icon: AppIcons.providers,
-              tint: SettingsHues.ai,
-              spot: SettingsIndex.entry(SettingsPageId.models),
-              onTap: () => _push(context, const ProvidersPage()),
-            ),
-            SettingsTile(
-              icon: AppIcons.permissions,
-              tint: SettingsHues.ai,
-              spot: SettingsIndex.entry(SettingsPageId.permission),
-              value: text(permission?.$1, color: permission?.$2 == true ? colors.warning : null),
-              onTap: () => _push(context, PermissionPage(sessionId: ref.read(currentSessionProvider))),
-            ),
-            SettingsTile(
-              icon: AppIcons.profile,
-              tint: SettingsHues.ai,
-              spot: SettingsIndex.entry(SettingsPageId.personalization),
-              value: text(prefs),
-              onTap: () => _push(context, const PersonalizationPage()),
-            ),
-          ],
-        ),
-        SettingsSection(
-          title: l10n.hubGroupCapabilities,
-          children: [
-            if (android || ios)
+        if (hasHost)
+          SettingsSection(
+            title: l10n.hubGroupAi,
+            children: [
               SettingsTile(
-                icon: AppIcons.phoneControl,
-                tint: SettingsHues.abilities,
-                spot: SettingsIndex.entry(SettingsPageId.phone),
-                value: text(phoneValue, color: phoneValue == l10n.hubValueOneStep ? colors.warning : null),
-                onTap: () => _push(context, const PhoneControlScreen()),
-              )
-            else
-              SettingsTile(
-                icon: AppIcons.phoneControl,
-                tint: SettingsHues.abilities,
-                spot: SettingsIndex.entry(SettingsPageId.systemActions),
-                value: text(
-                  ref.watch(systemActionsProvider.select((s) => s.enabled)) ? l10n.pluginsTurnedOn : l10n.hubValueOff,
-                ),
-                onTap: () => _push(context, const SystemActionsPage()),
+                icon: AppIcons.providers,
+                tint: SettingsHues.ai,
+                spot: SettingsIndex.entry(SettingsPageId.models),
+                onTap: () => _push(context, const ProvidersPage()),
               ),
-            SettingsTile(
-              icon: AppIcons.webSearch,
-              tint: SettingsHues.abilities,
-              spot: SettingsIndex.entry(SettingsPageId.webSearch),
-              value: text(newApi == null ? null : (newApi ? l10n.engineSearchNewApiBadge : l10n.commonDefault)),
-              onTap: () => _push(context, const WebSearchSettingsPage()),
-            ),
-            SettingsTile(
-              icon: AppIcons.generateMedia,
-              tint: SettingsHues.abilities,
-              spot: SettingsIndex.entry(SettingsPageId.media),
-              onTap: () => _push(context, const MediaSettingsPage()),
-            ),
-            if (ref.watch(operatingSystemProvider) == 'ohos') const LinuxEnvironmentTile(tint: SettingsHues.abilities),
-            SettingsTile(
-              icon: AppIcons.plugin,
-              tint: SettingsHues.abilities,
-              spot: SettingsIndex.entry(SettingsPageId.plugins),
-              value: plugins == null || plugins == 0
-                  ? null
-                  : Text(
-                      l10n.hubValuePlugins(plugins),
-                      style: AppType.tabular(Theme.of(context).textTheme.bodyMedium!),
-                    ),
-              onTap: () => _push(context, const PluginsScreen()),
-            ),
-            // The plugins' own settings sections, when the host has any.
-            ...pluginSettingsTiles(ref, tint: SettingsHues.abilities),
-          ],
-        ),
+              SettingsTile(
+                icon: AppIcons.permissions,
+                tint: SettingsHues.ai,
+                spot: SettingsIndex.entry(SettingsPageId.permission),
+                value: text(permission?.$1, color: permission?.$2 == true ? colors.warning : null),
+                onTap: () => _push(context, PermissionPage(sessionId: ref.read(currentSessionProvider))),
+              ),
+              SettingsTile(
+                icon: AppIcons.profile,
+                tint: SettingsHues.ai,
+                spot: SettingsIndex.entry(SettingsPageId.personalization),
+                value: text(prefs),
+                onTap: () => _push(context, const PersonalizationPage()),
+              ),
+            ],
+          ),
+        if (hasHost)
+          SettingsSection(
+            title: l10n.hubGroupCapabilities,
+            children: [
+              if (android || ios)
+                SettingsTile(
+                  icon: AppIcons.phoneControl,
+                  tint: SettingsHues.abilities,
+                  spot: SettingsIndex.entry(SettingsPageId.phone),
+                  value: text(phoneValue, color: phoneValue == l10n.hubValueOneStep ? colors.warning : null),
+                  onTap: () => _push(context, const PhoneControlScreen()),
+                )
+              else
+                SettingsTile(
+                  icon: AppIcons.phoneControl,
+                  tint: SettingsHues.abilities,
+                  spot: SettingsIndex.entry(SettingsPageId.systemActions),
+                  value: text(
+                    ref.watch(systemActionsProvider.select((s) => s.enabled)) ? l10n.pluginsTurnedOn : l10n.hubValueOff,
+                  ),
+                  onTap: () => _push(context, const SystemActionsPage()),
+                ),
+              SettingsTile(
+                icon: AppIcons.webSearch,
+                tint: SettingsHues.abilities,
+                spot: SettingsIndex.entry(SettingsPageId.webSearch),
+                value: text(newApi == null ? null : (newApi ? l10n.engineSearchNewApiBadge : l10n.commonDefault)),
+                onTap: () => _push(context, const WebSearchSettingsPage()),
+              ),
+              SettingsTile(
+                icon: AppIcons.generateMedia,
+                tint: SettingsHues.abilities,
+                spot: SettingsIndex.entry(SettingsPageId.media),
+                onTap: () => _push(context, const MediaSettingsPage()),
+              ),
+              if (localDsh && ref.watch(operatingSystemProvider) == 'ohos')
+                const LinuxEnvironmentTile(tint: SettingsHues.abilities),
+              SettingsTile(
+                icon: AppIcons.plugin,
+                tint: SettingsHues.abilities,
+                spot: SettingsIndex.entry(SettingsPageId.plugins),
+                value: plugins == null || plugins == 0
+                    ? null
+                    : Text(
+                        l10n.hubValuePlugins(plugins),
+                        style: AppType.tabular(Theme.of(context).textTheme.bodyMedium!),
+                      ),
+                onTap: () => _push(context, const PluginsScreen()),
+              ),
+              // The plugins' own settings sections, when the host has any.
+              ...pluginSettingsTiles(ref, tint: SettingsHues.abilities),
+            ],
+          ),
         SettingsSection(
           title: l10n.hubSettingsAppearance,
           children: [
@@ -297,13 +315,23 @@ class SettingsScreen extends ConsumerWidget {
         SettingsSection(
           title: l10n.hubGroupHosts,
           children: [
-            SettingsTile(
+            SettingsSwitchTile(
+              key: const ValueKey('settings-local-dsh'),
               icon: AppIcons.engine,
               tint: SettingsHues.hosts,
-              spot: SettingsIndex.entry(SettingsPageId.engine),
-              value: StatusChip(tone: engine.tone, label: engine.label),
-              onTap: () => _push(context, const EngineScreen()),
+              spot: Spots.localDsh,
+              subtitle: l10n.settingsLocalDshHint,
+              value: localDsh,
+              onChanged: (value) => unawaited(_setLocalDsh(context, value)),
             ),
+            if (engine != null)
+              SettingsTile(
+                icon: AppIcons.engine,
+                tint: SettingsHues.hosts,
+                spot: SettingsIndex.entry(SettingsPageId.engine),
+                value: StatusChip(tone: engine.tone, label: engine.label),
+                onTap: () => _push(context, const EngineScreen()),
+              ),
             SettingsTile(
               icon: AppIcons.remoteHosts,
               tint: SettingsHues.hosts,
@@ -311,13 +339,14 @@ class SettingsScreen extends ConsumerWidget {
               value: ssh == 0 ? null : Text(l10n.hubValueHosts(ssh)),
               onTap: () => _push(context, const RemoteScreen()),
             ),
-            SettingsTile(
-              icon: AppIcons.configure,
-              tint: SettingsHues.hosts,
-              spot: SettingsIndex.entry(SettingsPageId.engineParams),
-              value: Text(hostName),
-              onTap: () => _push(context, const EngineSettingsHubPage()),
-            ),
+            if (hasHost)
+              SettingsTile(
+                icon: AppIcons.configure,
+                tint: SettingsHues.hosts,
+                spot: SettingsIndex.entry(SettingsPageId.engineParams),
+                value: Text(hostName),
+                onTap: () => _push(context, const EngineSettingsHubPage()),
+              ),
           ],
         ),
         SettingsSection(
@@ -380,7 +409,10 @@ class SettingsScreen extends ConsumerWidget {
   (String, bool)? _permissionValue(WidgetRef ref) {
     final local = ref.watch(activeHostProvider).isLocal;
     final auto = ref.watch(settingsProvider.select((s) => s.autoApproveCommands));
-    final safe = ref.watch(localRuntimeProvider.select((s) => s.status.inSafeMode));
+    final safe =
+        local &&
+        ref.watch(localDshEnabledProvider) &&
+        ref.watch(localRuntimeProvider.select((s) => s.status.inSafeMode));
     // On the phone, 完全权限 for new conversations is the app's own switch.
     if (local && auto && !safe) return (permissionName('danger-full-access'), true);
     if (ref.watch(activeConnectionProvider).value == null) return null;
@@ -423,11 +455,11 @@ class _SettingsOverviewState extends ConsumerState<SettingsOverview> {
     final settings = ref.watch(settingsProvider);
     final balance = ref.watch(balanceProvider);
     final wallets = ref.watch(accountWalletBalanceProvider);
-    final runtime = ref.watch(localRuntimeProvider);
-    final engine = EngineStatusView.of(runtime);
+    final runtime = settings.localDshEnabled ? ref.watch(localRuntimeProvider) : null;
+    final engine = runtime == null ? null : EngineStatusView.of(runtime);
     final colors = DshColors.of(context);
     final active = ref.watch(activeHostProvider);
-    final remoteOnly = runtime.status.runtimeMissing && !active.isLocal;
+    final remoteOnly = runtime == null || (runtime.status.runtimeMissing && !active.isLocal);
 
     // The account's wallets when signed in; otherwise the key's balance.
     final money = account.signedIn && wallets != null ? balanceFromAccount(wallets) : balance.balance;
@@ -446,6 +478,18 @@ class _SettingsOverviewState extends ConsumerState<SettingsOverview> {
     // Set when the card shows the remote host: its link state.
     String? hostLink;
     switch (account.phase) {
+      case _ when runtime == null && active.isLocal:
+        leading = const OverviewGlyph(AppIcons.remoteHosts);
+        title = l10n.commonRemoteHost;
+        subtitle = l10n.commonNotConnected;
+        hostLink = subtitle;
+      case _ when remoteOnly && (runtime == null || !account.signedIn):
+        final link = HostStatusView.ofLink(ref.watch(hostLinkStatusProvider(active)).value ?? HostLinkStatus.idle);
+        leading = OverviewGlyph(hostKindIcon(active.kind), tint: hostKindTint(active.kind));
+        title = ref.watch(hostNameProvider(active)) ?? l10n.commonRemoteHost;
+        subtitle = [l10n.commonRemoteHost, link.label].join(' · ');
+        warn = link.tone == StatusTone.error || link.tone == StatusTone.warn;
+        hostLink = link.label;
       case AccountPhase.signedIn:
         leading = AccountAvatar(profile: account.profile, size: OverviewCard.avatarSize);
         title = account.profile?.displayName ?? l10n.hubSettingsAccount;
@@ -454,13 +498,6 @@ class _SettingsOverviewState extends ConsumerState<SettingsOverview> {
         leading = const OverviewGlyph(AppIcons.apiKey);
         title = l10n.hubSettingsAccount;
         subtitle = l10n.hubSettingsSigningIn;
-      case _ when remoteOnly:
-        final link = HostStatusView.ofLink(ref.watch(hostLinkStatusProvider(active)).value ?? HostLinkStatus.idle);
-        leading = OverviewGlyph(hostKindIcon(active.kind), tint: hostKindTint(active.kind));
-        title = ref.watch(hostNameProvider(active)) ?? l10n.commonRemoteHost;
-        subtitle = [l10n.commonRemoteHost, link.label].join(' · ');
-        warn = link.tone == StatusTone.error || link.tone == StatusTone.warn;
-        hostLink = link.label;
       case _ when settings.hasApiKey:
         leading = const OverviewGlyph(AppIcons.apiKey);
         title = l10n.hubSettingsApiKey;
@@ -481,7 +518,7 @@ class _SettingsOverviewState extends ConsumerState<SettingsOverview> {
         title = l10n.hubSettingsSignInAccount;
         subtitle = l10n.hubSettingsOrApiKey;
     }
-    final dsh = runtime.status.dshVersion;
+    final dsh = runtime?.status.dshVersion;
     // The card is 账号's way in (its title is whoever is signed in).
     return SpotAnchor(
       spot: SettingsIndex.entry(SettingsPageId.account),
@@ -500,11 +537,13 @@ class _SettingsOverviewState extends ConsumerState<SettingsOverview> {
             ? l10n.hubSettingsHostSemantics(title, hostLink)
             : l10n.hubSettingsAccountSemantics(title, subtitle),
         onTap: () => _push(hostLink != null ? const RemoteScreen() : const AccountPage()),
-        footer: OverviewFooter(
-          tone: engine.tone,
-          text: [l10n.hubSettingsEngine, engine.label, if (dsh != null) 'DSH $dsh'].join(' · '),
-        ),
-        onFooterTap: () => _push(const EngineScreen()),
+        footer: engine == null
+            ? null
+            : OverviewFooter(
+                tone: engine.tone,
+                text: [l10n.hubSettingsEngine, engine.label, if (dsh != null) 'DSH $dsh'].join(' · '),
+              ),
+        onFooterTap: engine == null ? null : () => _push(const EngineScreen()),
       ),
     );
   }

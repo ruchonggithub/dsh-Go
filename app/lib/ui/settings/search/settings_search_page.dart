@@ -20,6 +20,7 @@ import '../../../state/phone_state.dart';
 import '../../../state/plugin_config/plugin_config_state.dart';
 import '../../../state/plugins_state.dart';
 import '../../../state/sessions_state.dart';
+import '../../../state/settings_state.dart' show localDshEnabledProvider;
 import '../../../state/workshop_dependencies.dart' show workshopOriginProvider;
 import '../../common/app_sheet.dart' show groupTitleStyle;
 import '../../common/ask_ai.dart';
@@ -74,7 +75,7 @@ final _playHalfSpots = {Spots.wallpaper.id, Spots.star.id, Spots.community.id};
 String? unavailableReason(WidgetRef ref, SpotCondition? condition, L10n l10n) {
   final met = switch (condition) {
     null => true,
-    SpotCondition.localHost => ref.watch(activeHostProvider).isLocal,
+    SpotCondition.localHost => ref.watch(localDshEnabledProvider) && ref.watch(activeHostProvider).isLocal,
     SpotCondition.phoneControlOn => ref.watch(phoneProvider.select((s) => !s.loaded || s.status.enabled)),
     SpotCondition.nativeUi => ref.watch(askAiAvailableProvider),
     SpotCondition.openChat => ref.watch(currentSessionProvider) != null,
@@ -167,12 +168,14 @@ class _SettingsSearchPageState extends ConsumerState<SettingsSearchPage> {
     final extra = ref.watch(_pluginSpotsProvider);
     final androidFeatures = ref.watch(androidSystemFeaturesProvider);
     final entertainment = ref.watch(entertainmentEnabledProvider);
+    final localDsh = ref.watch(localDshEnabledProvider);
     final spots = [
       for (final spot in [...SettingsIndex.spots, ...extra])
-        if (entertainment ||
-            (!_playHalfPages.contains(spot.page) &&
-                !_playHalfPages.contains(spot.opens) &&
-                !_playHalfSpots.contains(spot.id)))
+        if ((localDsh || !SettingsIndex.requiresLocalDsh(spot)) &&
+            (entertainment ||
+                (!_playHalfPages.contains(spot.page) &&
+                    !_playHalfPages.contains(spot.opens) &&
+                    !_playHalfSpots.contains(spot.id))))
           spot,
     ];
     List<SearchHit> search({required bool androidFeatures}) => searchSettings(

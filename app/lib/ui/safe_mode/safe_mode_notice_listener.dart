@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../runtime/runtime_state.dart';
+import '../../state/settings_state.dart' show localDshEnabledProvider;
 
 /// Shows the runtime's one-off notices ("已用安全模式启动", "已恢复正常模式") as snack
 /// bars. Wrap the home shell (below the MaterialApp) with it once.
@@ -12,6 +13,7 @@ class SafeModeNoticeListener extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    if (!ref.watch(localDshEnabledProvider)) return child;
     ref.listen<RuntimeNotice?>(localRuntimeProvider.select((s) => s.notice), (previous, next) {
       if (next == null || next.seq == previous?.seq) return;
       ScaffoldMessenger.maybeOf(context)

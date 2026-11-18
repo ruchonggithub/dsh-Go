@@ -26,6 +26,7 @@ import '../../ui_config/ui_skill.dart';
 import '../onboarding/onboarding_flow.dart';
 import '../onboarding/setup_progress.dart';
 import '../remote/remote_screen.dart';
+import '../settings/settings_screen.dart';
 import '../theme/theme.dart';
 import '../web/mode_home.dart';
 import 'brand_mark.dart';
@@ -87,6 +88,8 @@ OnboardingStep? initialOnboardingStep({
 /// no install underway.
 bool runtimeStepAsks(RuntimeStatus status) =>
     status.installedVersion == null && status.phase != RuntimePhase.installing;
+
+final _startupHostReady = FutureProvider<void>((ref) => ref.read(activeHostProvider.notifier).ready);
 
 /// App root: waits for settings and the native runtime to report in, then shows
 /// onboarding or the home shell, and auto-starts the local engine once per launch
@@ -255,7 +258,9 @@ class _RootGateState extends ConsumerState<RootGate> {
     if (_publishedDiagnostics || Platform.environment.containsKey('FLUTTER_TEST')) return;
     _publishedDiagnostics = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) unawaited(ref.read(diagnosticsPublisherProvider).publish());
+      if (mounted && ref.read(localDshEnabledProvider)) {
+        unawaited(ref.read(diagnosticsPublisherProvider).publish());
+      }
     });
   }
 
@@ -282,7 +287,7 @@ class _RootGateState extends ConsumerState<RootGate> {
       _ => false,
     };
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
+      if (!mounted || !ref.read(localDshEnabledProvider)) return;
       // First run is over (finished while away, or a remote host instead).
       if (!_beside) return unawaited(_prefs.setSetupStep(null));
       switch (setupRuntimeOf(status)) {
@@ -295,15 +300,12 @@ class _RootGateState extends ConsumerState<RootGate> {
     });
   }
 
-  @override
-  Widget build(BuildContext context) {
+  Widget get _home => UsageUpgradeNotice(child: widget.home ?? const ModeHome());
+
+  Widget _buildLocal(AppSettings settings, {required bool localSelected}) {
     ref.watch(automaticDiagnosticsProvider);
-    final settings = ref.watch(settingsProvider);
     final runtime = ref.watch(localRuntimeProvider.select((s) => (status: s.status, loaded: s.loaded)));
     final prefs = ref.watch(onboardingPrefsProvider);
-    // The last host comes back while the splash shows, so a phone without
-    // the runtime doesn't open on 本机 for a frame before its remote host.
-    ref.read(activeHostProvider);
 
     // "重置运行环境" sends the user back through setup; 「卸载运行环境」
     // (localDeclined) stays home.
@@ -344,13 +346,13 @@ class _RootGateState extends ConsumerState<RootGate> {
     });
     if (runtime.status.phase == RuntimePhase.running) _publishDiagnostics();
 
-    final Widget child;
-    if (!settings.loaded || !runtime.loaded || !prefs.loaded) {
-      StartupTrace.mark('waiting: settings ${settings.loaded}, engine ${runtime.loaded}, setup ${prefs.loaded}');
-      child = const _Splash();
-    } else {
-      if (!_decided) {
-        _decided = true;
+    if (!runtime.loaded || !prefs.loaded) {
+      StartupTrace.mark('waiting: engine ${runtime.loaded}, setup ${prefs.loaded}');
+      return const _Splash();
+    }
+    if (!_decided) {
+      _decided = true;
+      if (localSelected) {
         _step = initialOnboardingStep(
           status: runtime.status,
           hasApiKey: settings.hasApiKey,
@@ -362,33 +364,55 @@ class _RootGateState extends ConsumerState<RootGate> {
         if (_chooseRuntime && _step != null) ref.read(localFootprintProvider);
         _resumeBeside(prefs.setupStep, runtime.status);
       }
-      if (_step case final step?) {
-        child = OnboardingFlow(
-          step: step,
-          chooseRuntime: _chooseRuntime,
-          beside: _beside,
-          onLocal: _chooseRuntime ? _chooseLocal : null,
-          onTavern: _chooseRuntime ? _chooseTavern : null,
-          onAppearanceDone: _afterAppearance,
-          onAccessDone: _afterAccess,
-          onFinished: _afterFinishing,
-          onRemote: _useRemote,
-          onWelcomeDone: () {
-            unawaited(ref.read(onboardingPrefsProvider.notifier).markWelcomeSeen());
-            _chooseRuntime = runtimeStepAsks(ref.read(localRuntimeProvider).status);
-            _goTo(OnboardingStep.runtime);
-          },
-          onRuntimeDone: _afterRuntime,
-          onKeyDone: _afterKey,
-        );
-      } else {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) _maybeAutoStart();
-        });
-        // The native shell or the web page, by 界面 (ui_mode_state.dart); an
-        // install from before usage statistics is told about them there, once.
-        child = UsageUpgradeNotice(child: widget.home ?? const ModeHome());
-      }
+    }
+    if (_step case final step?) {
+      return OnboardingFlow(
+        step: step,
+        chooseRuntime: _chooseRuntime,
+        beside: _beside,
+        onLocal: _chooseRuntime ? _chooseLocal : null,
+        onTavern: _chooseRuntime ? _chooseTavern : null,
+        onAppearanceDone: _afterAppearance,
+        onAccessDone: _afterAccess,
+        onFinished: _afterFinishing,
+        onRemote: _useRemote,
+        onWelcomeDone: () {
+          unawaited(ref.read(onboardingPrefsProvider.notifier).markWelcomeSeen());
+          _chooseRuntime = runtimeStepAsks(ref.read(localRuntimeProvider).status);
+          _goTo(OnboardingStep.runtime);
+        },
+        onRuntimeDone: _afterRuntime,
+        onKeyDone: _afterKey,
+      );
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && ref.read(localDshEnabledProvider)) _maybeAutoStart();
+    });
+    return _home;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final settings = ref.watch(settingsProvider);
+    final restoringHost = ref.watch(_startupHostReady).isLoading;
+    final localSelected = ref.watch(activeHostProvider.select((host) => host.isLocal));
+    if (!settings.localDshEnabled && _decided) {
+      // Re-opening this mode makes a fresh onboarding/auto-start decision.
+      _decided = _autoStartDone = _chooseRuntime = _beside = _besideEngine = _publishedDiagnostics = false;
+      _step = null;
+    }
+    final Widget child;
+    if (!settings.loaded || restoringHost) {
+      child = const _Splash();
+    } else if (settings.localDshEnabled) {
+      child = _buildLocal(settings, localSelected: localSelected);
+    } else if (localSelected) {
+      child = RemoteScreen(
+        onOpenSettings: () =>
+            Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const SettingsScreen())),
+      );
+    } else {
+      child = _home;
     }
     if (child is! _Splash && !_launchReady) {
       // 启动画面: the first page is up. A warm start's launch screen goes now; a cold start of
@@ -398,7 +422,9 @@ class _RootGateState extends ConsumerState<RootGate> {
         StartupTrace.mark('first page');
         final launch = LaunchController.active.value;
         if (launch == null) return StartupTrace.finished();
-        launch.ready(waitsForEngine: ref.read(activeHostProvider).isLocal);
+        if (mounted) {
+          launch.ready(waitsForEngine: ref.read(localDshEnabledProvider) && ref.read(activeHostProvider).isLocal);
+        }
       });
     }
     return AnimatedSwitcher(
@@ -406,7 +432,15 @@ class _RootGateState extends ConsumerState<RootGate> {
       switchInCurve: AppMotion.enter,
       switchOutCurve: AppMotion.exit,
       child: KeyedSubtree(
-        key: ValueKey(child is _Splash ? 'splash' : (_step == null ? 'home' : 'onboarding')),
+        key: ValueKey(
+          child is _Splash
+              ? 'splash'
+              : child is RemoteScreen
+              ? 'remote'
+              : _step == null
+              ? 'home'
+              : 'onboarding',
+        ),
         child: child,
       ),
     );
@@ -429,7 +463,8 @@ class _ResetFinishing extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (ref.watch(operatingSystemProvider) != 'ohos' ||
+    if (!ref.watch(localDshEnabledProvider) ||
+        ref.watch(operatingSystemProvider) != 'ohos' ||
         ref.watch(localRuntimeProvider.select((s) => s.progress)) == null) {
       return const SizedBox.shrink();
     }

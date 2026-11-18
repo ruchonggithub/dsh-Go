@@ -34,6 +34,7 @@ class AppPage extends StatefulWidget {
     this.slivers = const [],
     this.actions = const [],
     this.showLargeTitle = true,
+    this.showBack = true,
     this.padBottom = true,
     this.solidBar = true,
   });
@@ -55,6 +56,7 @@ class AppPage extends StatefulWidget {
   final List<Widget> actions;
 
   final bool showLargeTitle;
+  final bool showBack;
   final bool padBottom;
 
   /// Once content scrolls under the bar, the page's own backdrop is opaque
@@ -78,12 +80,14 @@ class AppPage extends StatefulWidget {
     required List<Widget> children,
     List<Widget> actions = const [],
     bool solidBar = true,
+    bool showBack = true,
   }) => AppPage(
     key: key,
     title: title,
     subtitle: subtitle,
     actions: actions,
     solidBar: solidBar,
+    showBack: showBack,
     slivers: [SliverList.list(children: children)],
   );
 
@@ -236,14 +240,16 @@ class _AppPageState extends State<AppPage> {
                     child: NavigationToolbar(
                       centerMiddle: true,
                       middleSpacing: 8,
-                      leading: Center(
-                        widthFactor: 1,
-                        child: GlassIconButton(
-                          icon: AppIcons.back,
-                          tooltip: l10n.commonBack,
-                          onPressed: () => Navigator.of(context).maybePop(),
-                        ),
-                      ),
+                      leading: widget.showBack
+                          ? Center(
+                              widthFactor: 1,
+                              child: GlassIconButton(
+                                icon: AppIcons.back,
+                                tooltip: l10n.commonBack,
+                                onPressed: () => Navigator.of(context).maybePop(),
+                              ),
+                            )
+                          : const SizedBox(width: 44),
                       middle: ValueListenableBuilder<double>(
                         valueListenable: _offset,
                         builder: (context, offset, child) {

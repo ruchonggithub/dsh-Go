@@ -24,7 +24,7 @@ import '../shell/page_frame.dart';
 import '../shell/quick_panel.dart';
 import '../theme/app_icons.dart';
 import '../theme/theme.dart';
-import '../web/local_web_screen.dart';
+import '../web/dsh_web_launcher.dart';
 import 'quick_panel_items_sheet.dart';
 import 'settings_widgets.dart';
 
@@ -51,7 +51,7 @@ class InterfacePage extends ConsumerWidget {
     final settings = ref.watch(settingsProvider);
     final tableTint = ref.watch(tableTintProvider);
     final engine = ref.watch(engineSettingsProvider).value;
-    final quickPanel = ref.watch(quickPanelProvider);
+    final quickPanel = ref.watch(visibleQuickPanelProvider);
     final startup = ref.watch(appModeProvider.select((s) => s.startup));
     // Entertainment off: only 工作 is offered, so a 模式 section with a
     // one-segment control (and nothing to choose) is left out whole.
@@ -113,7 +113,7 @@ class InterfacePage extends ConsumerWidget {
               // In 网页模式 the web app is the home underneath.
               onTap: () => mode == UiMode.web
                   ? Navigator.of(context, rootNavigator: true).popUntil((route) => route.isFirst)
-                  : Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const LocalWebScreen())),
+                  : openDshWeb(context, ref),
             ),
             SettingsSwitchTile(
               spot: Spots.webPhoneLayout,

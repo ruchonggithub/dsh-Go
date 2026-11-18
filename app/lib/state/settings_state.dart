@@ -15,6 +15,7 @@ class AppSettings {
   const AppSettings({
     this.apiKey = '',
     this.themeMode = ThemeMode.system,
+    this.localDshEnabled = false,
     this.autoStartLocal = true,
     this.autoStartLocalExplicit = true,
     this.autoApproveCommands = false,
@@ -32,6 +33,9 @@ class AppSettings {
 
   final String apiKey;
   final ThemeMode themeMode;
+
+  /// Opt in to using the DSH engine on this device, independently of remote hosts.
+  final bool localDshEnabled;
 
   /// Start the local DSH automatically when the app opens.
   final bool autoStartLocal;
@@ -86,6 +90,7 @@ class AppSettings {
   AppSettings copyWith({
     String? apiKey,
     ThemeMode? themeMode,
+    bool? localDshEnabled,
     bool? autoStartLocal,
     bool? autoStartLocalExplicit,
     bool? autoApproveCommands,
@@ -102,6 +107,7 @@ class AppSettings {
   }) => AppSettings(
     apiKey: apiKey ?? this.apiKey,
     themeMode: themeMode ?? this.themeMode,
+    localDshEnabled: localDshEnabled ?? this.localDshEnabled,
     autoStartLocal: autoStartLocal ?? this.autoStartLocal,
     autoStartLocalExplicit: autoStartLocalExplicit ?? this.autoStartLocalExplicit,
     autoApproveCommands: autoApproveCommands ?? this.autoApproveCommands,
@@ -129,6 +135,7 @@ List<(double, String)> get chatTextScales => [
 class SettingsController extends Notifier<AppSettings> {
   static const _apiKeyKey = 'deepseek_api_key';
   static const _themeKey = 'theme_mode';
+  static const _localDshKey = 'local_dsh_enabled';
   static const _autoStartKey = 'auto_start_local';
   static const _autoApproveKey = 'auto_approve_commands';
   static const _automaticDiagnosticsKey = 'automatic_diagnostics';
@@ -176,6 +183,7 @@ class SettingsController extends Notifier<AppSettings> {
         (m) => m.name == prefs.getString(_themeKey),
         orElse: () => ThemeMode.system,
       ),
+      localDshEnabled: prefs.getBool(_localDshKey) ?? false,
       autoStartLocal: prefs.getBool(_autoStartKey) ?? ref.read(performanceDefaultsProvider).autoStartLocal,
       autoStartLocalExplicit: prefs.containsKey(_autoStartKey),
       autoApproveCommands: prefs.getBool(_autoApproveKey) ?? false,
@@ -315,6 +323,13 @@ class SettingsController extends Notifier<AppSettings> {
     await prefs.setBool(_chatSuggestionsKey, value);
   }
 
+  Future<void> setLocalDshEnabled(bool enabled) async {
+    await _loaded;
+    if (!ref.mounted || state.localDshEnabled == enabled) return;
+    state = state.copyWith(localDshEnabled: enabled);
+    await (await SharedPreferences.getInstance()).setBool(_localDshKey, enabled);
+  }
+
   Future<void> setAutoStartLocal(bool value) async {
     await _loaded;
     if (!ref.mounted) return;
@@ -325,3 +340,5 @@ class SettingsController extends Notifier<AppSettings> {
 }
 
 final settingsProvider = NotifierProvider<SettingsController, AppSettings>(SettingsController.new);
+
+final localDshEnabledProvider = Provider<bool>((ref) => ref.watch(settingsProvider.select((s) => s.localDshEnabled)));

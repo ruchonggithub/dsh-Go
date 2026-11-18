@@ -26,7 +26,7 @@ class _Runtime extends LocalRuntimeController {
 
 class _Settings extends SettingsController {
   @override
-  AppSettings build() => const AppSettings(loaded: true);
+  AppSettings build() => const AppSettings(loaded: true, localDshEnabled: true);
 }
 
 class _Client extends DshClient {

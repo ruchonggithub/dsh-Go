@@ -9709,6 +9709,16 @@ class L10nEn extends L10n {
   String get hubGroupHosts => 'Hosts';
 
   @override
+  String get settingsLocalDsh => 'On-device DSH';
+
+  @override
+  String get settingsLocalDshHint => 'Enable the engine on this device. When off, only remote hosts are available.';
+
+  @override
+  String get settingsLocalDshStopFailed =>
+      'Could not stop the on-device engine. Turn On-device DSH back on to check its status.';
+
+  @override
   String get hubGroupHelp => 'Help and about';
 
   @override

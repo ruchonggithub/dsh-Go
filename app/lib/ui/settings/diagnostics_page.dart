@@ -73,9 +73,10 @@ class DiagnosticsPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
-    final runtime = ref.watch(localRuntimeProvider);
     final settings = ref.watch(settingsProvider);
-    final conn = ref.watch(localConnectionProvider);
+    final localDsh = settings.localDshEnabled;
+    final runtime = localDsh ? ref.watch(localRuntimeProvider) : const LocalRuntimeState();
+    final conn = localDsh ? ref.watch(localConnectionProvider) : const AsyncData<HostConnection?>(null);
     final status = runtime.status;
     final connection = switch (conn) {
       AsyncData(:final value) => value == null ? l10n.commonNotConnected : l10n.pluginsConnectedHost(value.label),
@@ -109,56 +110,63 @@ class DiagnosticsPage extends ConsumerWidget {
       title: l10n.pluginsDiagnostics,
       subtitle: Text(l10n.pluginsDiagnosticsDescription),
       children: [
-        SettingsSection(
-          title: l10n.pluginsRuntime,
-          children: [
-            InfoRow(label: l10n.commonStatus, value: EngineStatusView.of(runtime).label),
-            InfoRow(label: l10n.pluginsArchitecture, value: status.abi ?? '—', mono: true),
-            InfoRow(label: l10n.pluginsBundledVersion, value: shortRuntimeVersion(status.bundledVersion), mono: true),
-            InfoRow(
-              label: l10n.pluginsInstalledVersion,
-              value: shortRuntimeVersion(status.installedVersion),
-              mono: true,
-            ),
-            RuntimeLaunchFacts(status: status),
-            InfoRow(label: 'DSH', value: status.dshVersion ?? '—', mono: true),
-            InfoRow(label: 'Node.js', value: status.nodeVersion ?? '—', mono: true),
-            if (status.error case final error?) InfoRow(label: l10n.pluginsErrorLabel, value: error, mono: true),
-          ],
-        ),
-        SettingsSection(
-          title: l10n.pluginsConnection,
-          children: [
-            InfoRow(label: l10n.pluginsAddress, value: status.baseUrl ?? '—', mono: true),
-            InfoRow(label: l10n.pluginsClient, value: connection),
-            InfoRow(label: 'API Key', value: settings.hasApiKey ? l10n.pluginsConfigured : l10n.commonNotSet),
-          ],
-        ),
-        // Its failure evidence is recorded natively: Android's own, HarmonyOS's from HiAppEvent.
-        const AutomaticDiagnosticsSection(),
+        if (localDsh) ...[
+          SettingsSection(
+            title: l10n.pluginsRuntime,
+            children: [
+              InfoRow(label: l10n.commonStatus, value: EngineStatusView.of(runtime).label),
+              InfoRow(label: l10n.pluginsArchitecture, value: status.abi ?? '—', mono: true),
+              InfoRow(label: l10n.pluginsBundledVersion, value: shortRuntimeVersion(status.bundledVersion), mono: true),
+              InfoRow(
+                label: l10n.pluginsInstalledVersion,
+                value: shortRuntimeVersion(status.installedVersion),
+                mono: true,
+              ),
+              RuntimeLaunchFacts(status: status),
+              InfoRow(label: 'DSH', value: status.dshVersion ?? '—', mono: true),
+              InfoRow(label: 'Node.js', value: status.nodeVersion ?? '—', mono: true),
+              if (status.error case final error?) InfoRow(label: l10n.pluginsErrorLabel, value: error, mono: true),
+            ],
+          ),
+          SettingsSection(
+            title: l10n.pluginsConnection,
+            children: [
+              InfoRow(label: l10n.pluginsAddress, value: status.baseUrl ?? '—', mono: true),
+              InfoRow(label: l10n.pluginsClient, value: connection),
+              InfoRow(label: 'API Key', value: settings.hasApiKey ? l10n.pluginsConfigured : l10n.commonNotSet),
+            ],
+          ),
+          // Its failure evidence is recorded natively: Android's own, HarmonyOS's from HiAppEvent.
+          const AutomaticDiagnosticsSection(),
+        ],
         // Android reads the system log through a privileged channel; HarmonyOS, this app's own window.
         const SystemImeDiagnosticsSection(),
         DiagnosticsExportCard(
           title: l10n.pluginsExport,
           extra: [
-            ListPageRow(
-              icon: AppIcons.copy,
-              title: l10n.pluginsCopyDiagnostics,
-              subtitle: l10n.pluginsDiagnosticsContents,
-              onTap: copyReport,
-            ),
-            ListPageRow(
-              icon: AppIcons.bot,
-              title: l10n.diagnosticsForAi,
-              subtitle: l10n.diagnosticsForAiHint,
-              onTap: publishForAi,
-            ),
+            if (localDsh) ...[
+              ListPageRow(
+                icon: AppIcons.copy,
+                title: l10n.pluginsCopyDiagnostics,
+                subtitle: l10n.pluginsDiagnosticsContents,
+                onTap: copyReport,
+              ),
+              ListPageRow(
+                icon: AppIcons.bot,
+                title: l10n.diagnosticsForAi,
+                subtitle: l10n.diagnosticsForAiHint,
+                onTap: publishForAi,
+              ),
+            ],
           ],
         ),
         // The note belongs to the export card; the next group starts 24 below
         // it, as groups do.
         const DiagnosticsBundleNote(),
-        if (ref.watch(androidSystemFeaturesProvider)) ...[const SizedBox(height: 24), const DirectEngineSettings()],
+        if (localDsh && ref.watch(androidSystemFeaturesProvider)) ...[
+          const SizedBox(height: 24),
+          const DirectEngineSettings(),
+        ],
       ],
     );
   }

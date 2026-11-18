@@ -9191,6 +9191,15 @@ class L10nZh extends L10n {
   String get hubGroupHosts => '主机';
 
   @override
+  String get settingsLocalDsh => '本机 DSH';
+
+  @override
+  String get settingsLocalDshHint => '开启后可使用本机引擎；关闭后只能连接远程主机。';
+
+  @override
+  String get settingsLocalDshStopFailed => '未能停止本机引擎，可重新开启「本机 DSH」查看状态。';
+
+  @override
   String get hubGroupHelp => '帮助与关于';
 
   @override

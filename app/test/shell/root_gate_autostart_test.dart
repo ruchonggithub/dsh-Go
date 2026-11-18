@@ -6,6 +6,7 @@ import 'package:dsh_app/ui/shell/root_gate.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../safe_mode/support.dart';
 import 'golden_harness.dart';
@@ -18,6 +19,7 @@ class _Logs extends LocalRuntimeLogsController {
 
 void main() {
   late _Logs logs;
+  setUp(() => SharedPreferences.setMockInitialValues({}));
   Future<RecordingRuntime> pump(
     WidgetTester tester, {
     bool autoStart = true,
@@ -49,12 +51,16 @@ void main() {
           localRuntimeProvider.overrideWith(() => runtime),
           localRuntimeLogsProvider.overrideWith(() => logs),
           settingsProvider.overrideWith(
-            () => FakeSettings(AppSettings(loaded: true, apiKey: 'key', autoStartLocal: autoStart)),
+            () => FakeSettings(
+              AppSettings(loaded: true, localDshEnabled: true, apiKey: 'key', autoStartLocal: autoStart),
+            ),
           ),
         ],
       ),
     );
-    await tester.pump();
+    for (var i = 0; i < 6; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
     ProviderScope.containerOf(tester.element(find.byType(RootGate))).read(localRuntimeLogsProvider);
     return runtime;
   }

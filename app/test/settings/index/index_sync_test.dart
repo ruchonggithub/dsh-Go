@@ -194,7 +194,7 @@ Future<void> _app(WidgetTester tester, Widget home, List<Override> overrides) as
 
 List<Override> _running() => [
   localRuntimeProvider.overrideWith(() => FakeRuntime(const LocalRuntimeState(loaded: true, status: runningStatus))),
-  settingsProvider.overrideWith(() => FakeSettings(const AppSettings(loaded: true))),
+  settingsProvider.overrideWith(() => FakeSettings(const AppSettings(loaded: true, localDshEnabled: true))),
 ];
 
 void main() {

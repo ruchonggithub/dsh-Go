@@ -49,7 +49,7 @@ class ConversationPanel extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
     final section = ref.watch(conversationPaneProvider);
-    final destinations = ref.watch(quickPanelProvider.select((p) => p.items));
+    final destinations = ref.watch(visibleQuickPanelProvider.select((p) => p.items));
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [

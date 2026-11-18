@@ -36,7 +36,7 @@ void main() {
       runtimeBridgeProvider.overrideWithValue(bridge),
       localRuntimeProvider.overrideWith(() => runtime),
       localRuntimeLogsProvider.overrideWithBuild((ref, notifier) => sampleLogs),
-      settingsProvider.overrideWith(() => FakeSettings(const AppSettings(loaded: true))),
+      settingsProvider.overrideWith(() => FakeSettings(const AppSettings(loaded: true, localDshEnabled: true))),
     ];
   }
 

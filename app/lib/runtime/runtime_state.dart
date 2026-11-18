@@ -167,13 +167,19 @@ class LocalRuntimeController extends Notifier<LocalRuntimeState> {
     }
   }
 
-  Future<void> install() {
+  void _requireLocalDsh() {
+    if (!ref.read(localDshEnabledProvider)) throw PlatformException(code: 'local_dsh_disabled');
+  }
+
+  Future<void> install() async {
+    _requireLocalDsh();
     ref.read(readListCredentialEpochProvider.notifier).advance();
     return _bridge.install();
   }
 
   /// Installs without what a reset kept but could not put back.
-  Future<void> installDroppingKept() {
+  Future<void> installDroppingKept() async {
+    _requireLocalDsh();
     ref.read(readListCredentialEpochProvider.notifier).advance();
     return _bridge.install(dropKept: true);
   }
@@ -199,10 +205,12 @@ class LocalRuntimeController extends Notifier<LocalRuntimeState> {
   /// HarmonyOS's engine runs in the app's own process and only once, so a second
   /// start takes a new process. Every stop-then-start in the app ends up here.
   Future<void> _startOrReopen(Future<void> Function() start) async {
+    _requireLocalDsh();
     try {
       await start();
     } on PlatformException catch (e) {
       if (e.code != 'ohos_restart_required') rethrow;
+      _requireLocalDsh();
       try {
         await _bridge.reopenApp();
       } on PlatformException {
@@ -225,6 +233,7 @@ class LocalRuntimeController extends Notifier<LocalRuntimeState> {
   Future<RuntimeResetOutcome> resetAndReinstall(ResetKeep keep) => _resetRuntime(keep, reinstall: true);
 
   Future<RuntimeResetOutcome> _resetRuntime(ResetKeep keep, {required bool reinstall}) async {
+    _requireLocalDsh();
     final r = ref;
     ref.read(readListCredentialEpochProvider.notifier).advance();
     try {

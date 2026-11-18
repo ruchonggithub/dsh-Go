@@ -33,7 +33,7 @@ class _Settings extends SettingsController {
   _Settings(this.key);
   final String key;
   @override
-  AppSettings build() => AppSettings(loaded: true, apiKey: key);
+  AppSettings build() => AppSettings(loaded: true, localDshEnabled: true, apiKey: key);
 }
 
 class _Mux extends DshMux {

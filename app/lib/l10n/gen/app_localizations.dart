@@ -16994,6 +16994,24 @@ abstract class L10n {
   /// **'主机'**
   String get hubGroupHosts;
 
+  /// No description provided for @settingsLocalDsh.
+  ///
+  /// In zh, this message translates to:
+  /// **'本机 DSH'**
+  String get settingsLocalDsh;
+
+  /// No description provided for @settingsLocalDshHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'开启后可使用本机引擎；关闭后只能连接远程主机。'**
+  String get settingsLocalDshHint;
+
+  /// No description provided for @settingsLocalDshStopFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'未能停止本机引擎，可重新开启「本机 DSH」查看状态。'**
+  String get settingsLocalDshStopFailed;
+
   /// No description provided for @hubGroupHelp.
   ///
   /// In zh, this message translates to:
