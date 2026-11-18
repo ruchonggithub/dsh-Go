@@ -58,6 +58,7 @@ void main() {
     secretStoreProvider.overrideWithValue(secrets),
     networkKicksProvider.overrideWithValue(const Stream.empty()),
     relayBackendProvider.overrideWithValue(relay),
+    relayScopedBackendProvider.overrideWith((ref, _) => relay),
     sshTransportFactoryProvider.overrideWithValue(server.connect),
     // Keep links idle: these tests are about the UI, not connecting.
     hostLinkStatusProvider.overrideWith((ref, host) => Stream.value(linkStatus)),
@@ -206,7 +207,7 @@ void main() {
     relay.user = null;
     final c = await pump(tester, const RemoteScreen());
     await frames(tester, 3);
-    await tester.tap(find.text('自建服务器 · 邮箱登录'));
+    await tester.tap(find.text('添加服务器'));
     await frames(tester);
     await tester.enterText(find.byType(TextField).at(0), 'remote.example.com');
     await tester.enterText(find.byType(TextField).at(1), 'me@example.com');
@@ -222,7 +223,7 @@ void main() {
     relay.user = null;
     await pump(tester, const RemoteScreen());
     await frames(tester, 3);
-    await tester.tap(find.text('自建服务器 · 邮箱登录'));
+    await tester.tap(find.text('添加服务器'));
     await frames(tester);
     // A scheme that is neither http nor https is the remaining invalid shape:
     // plain HTTP is accepted, since a LAN server may not be behind TLS.

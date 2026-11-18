@@ -4900,7 +4900,7 @@
   "remoteEmail": "Email",
   "remotePassword": "Password",
   "remoteRestoreServer": "Restore default server dsh.r2049.cn",
-  "remoteSignedInAccounts": "Signed-in accounts",
+  "remoteSignedInAccounts": "Saved servers and accounts",
   "remoteEmailIsAccount": "A server can hold several accounts, each signed in separately",
   "remoteAddAccountHere": "Add an account on this server",
   "remoteAddAccount": "Add account",

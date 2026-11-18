@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:dsh_app/l10n/l10n.dart';
 import 'package:dsh_app/remote/relay/relay_backend.dart';
 import 'package:dsh_app/remote/secret_store.dart';
 import 'package:dsh_app/runtime/runtime_state.dart';
@@ -60,14 +61,15 @@ Future<_Fixture> _open(WidgetTester tester, {bool noProviders = false, Completer
       brightness: Brightness.light,
       overrides: [
         secretStoreProvider.overrideWithValue(MemorySecretStore()),
-        relayBackendProvider.overrideWith((ref) {
-          final origin = ref.watch(relayServerProvider) ?? defaultRelayServer;
-          final backend = _Backend(origin, passwordGate);
-          if (origin == _server) {
-            backend.providers = noProviders ? [] : const [RelayAuthProvider(id: 'sso', displayName: 'Company SSO')];
-          }
-          return backends[origin] = backend;
-        }),
+        relayScopedBackendProvider.overrideWith(
+          (ref, scope) => backends.putIfAbsent(scope.$1, () {
+            final backend = _Backend(scope.$1, passwordGate);
+            if (scope.$1 == _server) {
+              backend.providers = noProviders ? [] : const [RelayAuthProvider(id: 'sso', displayName: 'Company SSO')];
+            }
+            return backend;
+          }),
+        ),
         networkKicksProvider.overrideWithValue(const Stream.empty()),
         localRuntimeProvider.overrideWith(
           () => FakeRuntime(const LocalRuntimeState(loaded: true, status: runningStatus)),
@@ -77,7 +79,7 @@ Future<_Fixture> _open(WidgetTester tester, {bool noProviders = false, Completer
   );
   await _frames(tester);
   final container = ProviderScope.containerOf(tester.element(find.byType(MaterialApp)));
-  await tester.tap(find.text('自建服务器 · 邮箱登录'));
+  await tester.tap(find.text(appL10n.remoteAddServer));
   await _frames(tester);
   return _Fixture(container, backends);
 }
@@ -98,8 +100,9 @@ void main() {
     expect(find.byType(SelfHostedLoginSheet), findsNothing);
     expect(f.container.read(relayServerProvider), _server);
     expect(
-      RelayAccountSelection.decode((await SharedPreferences.getInstance()).getString(RelaySelectionController.prefsKey)!)
-          ?.origin,
+      RelayAccountSelection.decode(
+        (await SharedPreferences.getInstance()).getString(RelaySelectionController.prefsKey)!,
+      )?.origin,
       _server,
     );
     expect(f.container.read(relayAccountProvider).value?.signedIn, isFalse);
@@ -127,8 +130,7 @@ void main() {
       expect(find.text('服务器地址无效'), findsOneWidget);
       expect(f.container.read(relayServerProvider), isNull);
       expect((await SharedPreferences.getInstance()).containsKey(RelaySelectionController.prefsKey), isFalse);
-      expect(f.backends.keys, [defaultRelayServer]);
-      expect(f.backends.values.single.passwordLogins, isEmpty);
+      expect(f.backends, isEmpty);
     });
   }
 
@@ -139,7 +141,7 @@ void main() {
     await _frames(tester);
     expect(find.text('填写服务器地址、邮箱和密码'), findsOneWidget);
     expect(f.container.read(relayServerProvider), isNull);
-    expect(f.backends.values.single.passwordLogins, isEmpty);
+    expect(f.backends, isEmpty);
   });
 
   testWidgets('pending password sign-in disables server selection', (tester) async {

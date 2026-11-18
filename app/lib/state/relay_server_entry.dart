@@ -31,7 +31,14 @@ final class _Unset {
 /// This record is the shortcut that makes them reachable — the tokens stay in
 /// secure storage under that scope.
 class RelayAccountEntry {
-  const RelayAccountEntry({required this.origin, required this.account, this.label, this.provider, this.lastUsed});
+  const RelayAccountEntry({
+    required this.origin,
+    required this.account,
+    this.label,
+    this.provider,
+    this.lastUsed,
+    this.scopedCredentials = false,
+  });
 
   /// Normalized origin, exactly as `DshRemoteRelayBackend.normalizeServer`
   /// returns it and as the storage scope is derived from.
@@ -51,6 +58,10 @@ class RelayAccountEntry {
   final String? provider;
 
   final DateTime? lastUsed;
+
+  /// A successful account-scoped login supersedes the old server-only slot.
+  /// Do not revive that older session after this account is signed out.
+  final bool scopedCredentials;
 
   /// Identity of the row: one person per server is one row.
   String get id => '$origin\n${account.trim().toLowerCase()}';
@@ -78,6 +89,7 @@ class RelayAccountEntry {
     Object? label = _unset,
     String? Function()? provider,
     DateTime? lastUsed,
+    bool? scopedCredentials,
   }) {
     final String? nextLabel;
     if (identical(label, _unset)) {
@@ -93,6 +105,7 @@ class RelayAccountEntry {
       label: nextLabel,
       provider: provider != null ? provider() : this.provider,
       lastUsed: lastUsed ?? this.lastUsed,
+      scopedCredentials: scopedCredentials ?? this.scopedCredentials,
     );
   }
 
@@ -111,6 +124,7 @@ class RelayAccountEntry {
     if (label != null) 'label': label,
     if (provider != null) 'provider': provider,
     if (lastUsed != null) 'lastUsed': lastUsed!.toIso8601String(),
+    if (scopedCredentials) 'scopedCredentials': true,
   };
 
   static RelayAccountEntry? fromJson(Object? raw) {
@@ -128,6 +142,7 @@ class RelayAccountEntry {
       label: label is String && label.isNotEmpty ? label : null,
       provider: provider is String && provider.isNotEmpty ? provider : null,
       lastUsed: lastUsed is String ? DateTime.tryParse(lastUsed) : null,
+      scopedCredentials: raw['scopedCredentials'] == true,
     );
   }
 

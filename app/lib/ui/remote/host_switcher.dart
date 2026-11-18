@@ -9,7 +9,6 @@ import '../../runtime/runtime_state.dart';
 import '../../state/connection_state.dart';
 import '../../state/entertainment_state.dart';
 import '../../state/hosts_state.dart';
-import '../../state/relay_server_entry.dart';
 import '../common/app_sheet.dart';
 import '../common/sheet_title_bar.dart';
 import '../common/status_chip.dart';
@@ -20,6 +19,7 @@ import '../theme/app_icons.dart';
 import '../theme/theme.dart';
 import 'host_key_dialog.dart';
 import 'host_status.dart';
+import 'relay_login_sheet.dart';
 
 /// Drawer-header chip: `● 本机 · 运行中 ⌄` / `● 电脑 · 已连接 ⌄`. Opens the
 /// host sheet.
@@ -88,24 +88,10 @@ class HostSheet extends ConsumerWidget {
     // Entertainment off: 伙伴小屋 is not offered from the host sheet either.
     final showEntertainment = ref.watch(entertainmentEnabledProvider);
     final ssh = ref.watch(hostsProvider.select((s) => s.ssh));
-    final account = ref.watch(relayAccountProvider).value;
+    final relay = ref.watch(relayAccountProvider);
+    final account = relay.isLoading ? null : relay.value;
     final relayHosts = account?.signedIn == true ? account!.hosts : const <RelayHost>[];
-    // Each account on each server has its own host list, so switching account
-    // is how the person reaches another server's computers. Shown only when
-    // there is a choice to make.
-    final accounts = ref.watch(relayAccountsProvider);
-    final selectedAccount = ref.watch(relaySelectionProvider);
-
-    Future<void> pickAccount(RelayAccountEntry entry) async {
-      if (selectedAccount != null && selectedAccount.id == entry.id) return;
-      final navigator = Navigator.of(context);
-      await ref.read(relaySelectionProvider.notifier).set(
-        RelayAccountSelection(origin: entry.origin, account: entry.account),
-      );
-      // The host list belongs to the previous account; leave the sender to
-      // pick a computer from the new one.
-      if (navigator.mounted) navigator.pop();
-    }
+    final hasSaved = ref.watch(relayAccountsProvider).isNotEmpty;
 
     Future<void> pick(HostRef host) async {
       if (host == active) {
@@ -138,18 +124,18 @@ class HostSheet extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               SheetTitleBar(l10n.remoteSwitchHost),
-              // Which account's computers are listed below. Hidden with one
-              // account: there is nothing to switch.
-              if (accounts.length > 1)
+              if (hasSaved)
                 SheetGroup(
                   margin: const EdgeInsets.fromLTRB(SheetTitleBar.inset, 0, SheetTitleBar.inset, 12),
                   children: [
-                    for (final entry in accounts)
-                      _AccountChoiceRow(
-                        entry: entry,
-                        active: selectedAccount != null && selectedAccount.id == entry.id,
-                        onTap: () => unawaited(pickAccount(entry)),
-                      ),
+                    SettingsTile(
+                      key: const ValueKey('host-choose-relay-account'),
+                      icon: AppIcons.swap,
+                      tinted: false,
+                      title: l10n.remoteSignedInAccounts,
+                      subtitle: account?.user?.displayName,
+                      onTap: () => unawaited(showSelfHostedLogin(context)),
+                    ),
                   ],
                 ),
               SheetGroup(
@@ -276,41 +262,6 @@ class _HostRow extends ConsumerWidget {
                   Text(view.label),
                 ],
               ),
-        trailing: active ? Icon(AppIcons.selected, size: 20, color: scheme.primary) : const SizedBox(width: 20),
-      ),
-    );
-  }
-}
-
-/// One signed-in account in the host sheet: the switch that changes whose
-/// computers the list below shows.
-///
-/// Distinct from the host rows on purpose. A host is a computer to drive; an
-/// account is who is driving. Both belong in this sheet because the person
-/// reaches the second server's computers by changing account first.
-class _AccountChoiceRow extends StatelessWidget {
-  const _AccountChoiceRow({required this.entry, required this.active, required this.onTap});
-
-  final RelayAccountEntry entry;
-  final bool active;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    final scheme = Theme.of(context).colorScheme;
-    final uri = Uri.tryParse(entry.origin);
-    final server = uri?.authority ?? entry.origin;
-    return Semantics(
-      key: ValueKey('account-row-${entry.id}'),
-      selected: active,
-      inMutuallyExclusiveGroup: true,
-      child: SettingsTile(
-        icon: AppIcons.cloud,
-        tinted: false,
-        title: entry.displayName,
-        subtitle: entry.needsAccount ? '$server · ${l10n.remoteAccountMissing}' : server,
-        onTap: onTap,
         trailing: active ? Icon(AppIcons.selected, size: 20, color: scheme.primary) : const SizedBox(width: 20),
       ),
     );

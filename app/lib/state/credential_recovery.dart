@@ -60,6 +60,7 @@ class CredentialRecovery {
     _ref.read(readListCredentialEpochProvider.notifier).advance();
     _ref
       ..invalidate(hostedLinksProvider)
+      ..invalidate(relayScopedBackendProvider)
       ..invalidate(relayBackendProvider)
       ..invalidate(forumAuthProvider);
   }

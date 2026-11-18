@@ -590,7 +590,7 @@
   "remoteEmail": "邮箱",
   "remotePassword": "密码",
   "remoteRestoreServer": "改回默认服务器 dsh.r2049.cn",
-  "remoteSignedInAccounts": "已登录的账号",
+  "remoteSignedInAccounts": "已保存的服务器与账号",
   "remoteEmailIsAccount": "同一服务器可登录多个账号，各自独立",
   "remoteAddAccountHere": "在此服务器添加账号",
   "remoteAddAccount": "添加账号",

@@ -415,7 +415,7 @@ class RelayAccountsController extends Notifier<List<RelayAccountEntry>> {
       final prefs = await SharedPreferences.getInstance();
       var entries = RelayAccountEntry.decodeList(prefs.getString(prefsKey));
       if (entries.isEmpty) entries = _migrate(prefs);
-      if (!_touched && entries.isNotEmpty) state = entries;
+      if (ref.mounted && !_touched && entries.isNotEmpty) state = entries;
     } catch (_) {}
   }
 
@@ -468,7 +468,13 @@ class RelayAccountsController extends Notifier<List<RelayAccountEntry>> {
   /// [account] is what the server reports. A row saved as [_pendingAccount] for
   /// the same origin is replaced by this one, so an upgraded install does not
   /// accumulate a dead row.
-  Future<void> remember(String origin, String account, {String? label, String? provider}) async {
+  Future<void> remember(
+    String origin,
+    String account, {
+    String? label,
+    String? provider,
+    bool? scopedCredentials,
+  }) async {
     await _loaded;
     final now = DateTime.now();
     final trimmedAccount = account.trim();
@@ -479,9 +485,10 @@ class RelayAccountsController extends Notifier<List<RelayAccountEntry>> {
     final trimmedLabel = label?.trim();
     final entry = (existing ?? RelayAccountEntry(origin: origin, account: trimmedAccount)).copyWith(
       // Omitting a label keeps the saved one; typing a blank one clears it.
-      label: label == null ? RelayAccountEntry.clearLabel : ((trimmedLabel?.isEmpty ?? true) ? null : trimmedLabel),
+      label: label == null ? existing?.label : (trimmedLabel!.isEmpty ? null : trimmedLabel),
       provider: provider == null ? null : () => provider,
       lastUsed: now,
+      scopedCredentials: scopedCredentials,
     );
     await _persist([entry, ...state.where((e) => e.id != id && !(e.origin == origin && e.account == _pendingAccount))]);
   }
@@ -526,20 +533,23 @@ const String _pendingAccount = '';
 class RelaySelectionController extends Notifier<RelayAccountSelection?> {
   static const prefsKey = 'remote_relay_selection';
   bool _touched = false;
+  late Future<void> _loaded;
+  Future<void> get ready => _loaded;
 
   @override
   RelayAccountSelection? build() {
-    unawaited(_restore());
+    _loaded = _restore();
     return null;
   }
 
   Future<void> _restore() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final raw = prefs.getString(prefsKey);
-      if (raw == null || raw.isEmpty || _touched) return;
+      if (!ref.mounted || _touched) return;
+      final raw = prefs.getString(prefsKey) ?? prefs.getString(RelayAccountsController.legacyServerKey);
+      if (raw == null || raw.isEmpty) return;
       final restored = RelayAccountSelection.decode(raw);
-      if (restored != null) state = restored;
+      state = restored ?? RelayAccountSelection(origin: DshRemoteRelayBackend.normalizeServer(raw), account: null);
     } catch (_) {}
   }
 
@@ -547,33 +557,35 @@ class RelaySelectionController extends Notifier<RelayAccountSelection?> {
   Future<void> set(RelayAccountSelection? selection) async {
     _touched = true;
     if (selection == state) return;
-    unawaited(ref.read(activeHostProvider.notifier).forget((h) => h.kind == HostKind.relay));
+    if (state?.id != selection?.id) {
+      unawaited(ref.read(activeHostProvider.notifier).forget((h) => h.kind == HostKind.relay));
+    }
     state = selection;
     try {
       final prefs = await SharedPreferences.getInstance();
-      if (selection == null) {
-        await prefs.remove(prefsKey);
-      } else {
-        await prefs.setString(prefsKey, selection.encode());
-      }
+      // An explicit empty selection must not revive the legacy server on restart.
+      await prefs.setString(prefsKey, selection?.encode() ?? '');
     } catch (_) {}
   }
 }
 
 /// One account on one server: the pair the credential scope is derived from.
 class RelayAccountSelection {
-  const RelayAccountSelection({required this.origin, required this.account});
+  const RelayAccountSelection({required this.origin, required this.account, this.legacySlot = false});
 
   final String origin;
-
-  /// Null for a server whose account was not recorded (an upgraded row the
-  /// person has not signed in on yet): the backend then reads the server's
-  /// single upstream slot.
   final String? account;
 
-  String get id => RelayAccountEntry(origin: origin, account: account ?? '').id;
+  /// An older sign-in can still be used from its origin-only storage slot.
+  /// The visible account is still known, and the next password sign-in uses
+  /// the account-specific slot instead.
+  final bool legacySlot;
 
-  String encode() => jsonEncode({'origin': origin, if (account != null) 'account': account});
+  String get id => RelayAccountEntry(origin: origin, account: account ?? '').id;
+  (String, String?) get scope => (origin, legacySlot ? null : account?.trim().toLowerCase());
+
+  String encode() =>
+      jsonEncode({'origin': origin, if (account != null) 'account': account, if (legacySlot) 'legacySlot': true});
 
   static RelayAccountSelection? decode(String raw) {
     try {
@@ -582,18 +594,21 @@ class RelayAccountSelection {
       final origin = map['origin'];
       if (origin is! String || origin.isEmpty) return null;
       final account = map['account'];
-      return RelayAccountSelection(origin: origin, account: account is String && account.isNotEmpty ? account : null);
+      return RelayAccountSelection(
+        origin: DshRemoteRelayBackend.normalizeServer(origin),
+        account: account is String && account.trim().isNotEmpty ? account : null,
+        legacySlot: map['legacySlot'] == true,
+      );
     } catch (_) {
       return null;
     }
   }
 
   @override
-  bool operator ==(Object other) =>
-      other is RelayAccountSelection && other.origin == origin && other.account == account;
+  bool operator ==(Object other) => other is RelayAccountSelection && other.id == id && other.legacySlot == legacySlot;
 
   @override
-  int get hashCode => Object.hash(origin, account);
+  int get hashCode => Object.hash(id, legacySlot);
 
   @override
   String toString() => 'RelayAccountSelection($origin, ${account ?? '-'})';
@@ -609,17 +624,6 @@ class RelayServerController extends Notifier<String?> {
   @override
   String? build() => ref.watch(relaySelectionProvider)?.origin;
 
-  Future<void> _set(String? origin) async {
-    final current = ref.read(relaySelectionProvider);
-    if (current?.origin == origin && (origin != null || current == null)) return;
-    // Switching servers assumes the most recent account on the new one, if any;
-    // the previous account's tokens belong to another host.
-    final next = origin == null ? null : ref.read(relayAccountsProvider.notifier).accountsOn(origin).firstOrNull;
-    await ref
-        .read(relaySelectionProvider.notifier)
-        .set(origin == null ? null : RelayAccountSelection(origin: origin, account: next?.account));
-  }
-
   /// Back to the hosted server, or — in a build that does not offer it — to no
   /// server at all. Each Server keeps its own sign-in either way.
   Future<void> useDefault() => ref.read(_relayServerActionsProvider).useDefault();
@@ -628,6 +632,11 @@ class RelayServerController extends Notifier<String?> {
   /// code; each Server keeps its own sign-in. Throws [HostLinkError] when
   /// invalid.
   Future<void> useServer(String server) => ref.read(_relayServerActionsProvider).useServer(server);
+
+  /// Uses the first usable saved session, without asking for a password.
+  /// False means none of the requested entries has usable credentials.
+  Future<bool> useSavedAccounts(List<RelayAccountEntry> entries) =>
+      ref.read(_relayServerActionsProvider).useSavedAccounts(entries);
 
   /// Switches to [server] (normalized; throws [HostLinkError] when invalid)
   /// and signs in there with email + password.
@@ -666,48 +675,117 @@ class _RelayServerActions {
   final Ref ref;
   int _operation = 0;
 
-  bool _owns(int operation, String? selection) =>
-      ref.mounted && operation == _operation && ref.read(relayServerProvider) == selection;
+  void _checkCurrent(int operation) {
+    if (!ref.mounted || operation != _operation) {
+      throw HostLinkError(HostLinkErrorKind.other, appL10n.remoteSignInCancelled);
+    }
+  }
+
+  Future<T> _withBackend<T>(RelayAccountSelection selection, Future<T> Function(RelayBackend) run) async {
+    final lease = ref.listen(relayScopedBackendProvider(selection.scope), (_, _) {});
+    try {
+      return await run(lease.read());
+    } finally {
+      lease.close();
+    }
+  }
+
+  Future<void> _select(int operation, RelayAccountSelection? selection) async {
+    _checkCurrent(operation);
+    final previous = ref.read(relaySelectionProvider);
+    await ref.read(relaySelectionProvider.notifier).set(selection);
+    _checkCurrent(operation);
+    // Choosing the same account is also a refresh. A different scope will
+    // already rebuild the list through the backend provider.
+    if (previous?.scope == selection?.scope) ref.invalidate(relayAccountProvider);
+  }
+
+  Future<RelayAccountSelection?> _usableAccount(RelayAccountEntry entry) async {
+    final origin = DshRemoteRelayBackend.normalizeServer(entry.origin);
+    final selection = RelayAccountSelection(origin: origin, account: entry.needsAccount ? null : entry.account);
+    // RelayUser.id identifies the device, not the login on the server.
+    bool matches(RelayUser user) => user.displayName.trim().toLowerCase() == entry.account.trim().toLowerCase();
+
+    final user = await _withBackend(selection, (backend) => backend.currentUser());
+    if (user != null && !entry.needsAccount && (entry.scopedCredentials || matches(user))) return selection;
+    if (entry.scopedCredentials) return null;
+
+    // Older builds wrote one slot per origin, even when there was a per-user
+    // shortcut. Recover it only if it really is this account.
+    final legacy = entry.needsAccount
+        ? user
+        : await _withBackend(RelayAccountSelection(origin: origin, account: null), (backend) => backend.currentUser());
+    if (legacy == null || (!entry.needsAccount && !matches(legacy))) return null;
+    return RelayAccountSelection(
+      origin: origin,
+      account: entry.needsAccount ? legacy.displayName : entry.account,
+      legacySlot: true,
+    );
+  }
 
   Future<void> useDefault() async {
     final operation = ++_operation;
-    await ref.read(relaySelectionProvider.notifier).set(null);
-    if (_owns(operation, null)) ref.invalidate(relayAccountProvider);
+    await ref.read(relaySelectionProvider.notifier).ready;
+    await _select(operation, null);
+  }
+
+  Future<bool> _useFirstSaved(int operation, List<RelayAccountEntry> entries) async {
+    for (final entry in entries) {
+      _checkCurrent(operation);
+      final selected = await _usableAccount(entry);
+      _checkCurrent(operation);
+      if (selected == null) continue;
+      await _select(operation, selected);
+      await ref
+          .read(relayAccountsProvider.notifier)
+          .remember(
+            selected.origin,
+            selected.account!,
+            label: entry.label,
+            scopedCredentials: selected.legacySlot ? null : true,
+          );
+      return true;
+    }
+    return false;
+  }
+
+  Future<bool> useSavedAccounts(List<RelayAccountEntry> entries) async {
+    final operation = ++_operation;
+    await ref.read(relaySelectionProvider.notifier).ready;
+    return _useFirstSaved(operation, entries);
   }
 
   Future<void> useServer(String server) async {
     final origin = DshRemoteRelayBackend.normalizeServer(server);
-    final selection = origin == defaultRelayServer ? null : origin;
     final operation = ++_operation;
-    await ref
-        .read(relaySelectionProvider.notifier)
-        .set(
-          RelayAccountSelection(
-            origin: selection ?? defaultRelayServer,
-            account: ref.read(relaySelectionProvider)?.account,
-          ),
-        );
-    if (_owns(operation, selection)) ref.invalidate(relayAccountProvider);
+    await ref.read(relaySelectionProvider.notifier).ready;
+    _checkCurrent(operation);
+    final accounts = ref.read(relayAccountsProvider.notifier);
+    await accounts.ready;
+    _checkCurrent(operation);
+    if (await _useFirstSaved(operation, accounts.accountsOn(origin))) return;
+    await _select(operation, RelayAccountSelection(origin: origin, account: null));
   }
 
   Future<void> loginWithPassword({required String server, required String email, required String password}) async {
-    ref.read(readListCredentialEpochProvider.notifier).advance();
     final origin = DshRemoteRelayBackend.normalizeServer(server);
-    final selection = origin == defaultRelayServer ? null : origin;
+    final account = email.trim();
+    final selection = RelayAccountSelection(origin: origin, account: account);
     final operation = ++_operation;
-    await ref.read(relayServerProvider.notifier)._set(selection);
-    // Persistence may yield to another server action, including A -> B -> A.
-    // Never resolve a retired request against the newly selected backend.
-    if (!_owns(operation, selection)) {
-      throw HostLinkError(HostLinkErrorKind.other, appL10n.remoteSignInCancelled);
-    }
-    final backend = ref.read(relayBackendProvider);
-    await backend.loginWithPassword(email.trim(), password);
-    // The captured account may have completed successfully after selection
-    // changed. Keep that result, but do not rebuild/cancel its successor login.
-    if (_owns(operation, selection) && identical(backend, ref.read(relayBackendProvider))) {
-      ref.invalidate(relayAccountProvider);
-    }
+    await ref.read(relaySelectionProvider.notifier).ready;
+    _checkCurrent(operation);
+    // Authenticate in the target slot before changing the active backend.
+    // A refused or superseded login leaves the previous host usable.
+    await _withBackend(selection, (backend) async {
+      await backend.loginWithPassword(account, password);
+      _checkCurrent(operation);
+      await ref
+          .read(relayAccountsProvider.notifier)
+          .remember(origin, account, provider: 'password', scopedCredentials: true);
+      _checkCurrent(operation);
+      ref.read(readListCredentialEpochProvider.notifier).advance();
+      await _select(operation, selection);
+    });
   }
 }
 
@@ -721,12 +799,20 @@ const defaultRelayServer = 'https://dsh.r2049.cn';
 /// what the credential slot is keyed on, so switching accounts rebuilds this
 /// backend against that account's stored tokens.
 final relayBackendProvider = Provider<RelayBackend>((ref) {
-  final history = ref.read(remoteCompactHistoryProvider.notifier);
   final selection = ref.watch(relaySelectionProvider);
+  final origin = resolveRelayServer(selection?.origin);
+  if (origin == null) return const UnavailableRelayBackend();
+  return ref.watch(relayScopedBackendProvider(selection?.scope ?? (origin, null)));
+});
+
+/// The same factory serves the active connection and an explicit sign-in to a
+/// different account. Inactive backends are closed when the operation ends.
+final relayScopedBackendProvider = Provider.autoDispose.family<RelayBackend, (String, String?)>((ref, scope) {
+  final history = ref.read(remoteCompactHistoryProvider.notifier);
   final backend = DshRemoteRelayBackend(
     secrets: ref.watch(secretStoreProvider),
-    serverUrl: selection?.origin,
-    accountKey: selection?.account,
+    serverUrl: scope.$1,
+    accountKey: scope.$2,
     clientVersion: AppInfo.version.split('+').first,
     // flutter_webrtc has no HarmonyOS implementation: straight to the relay,
     // not two handshakes that fail on the way there.
@@ -740,10 +826,6 @@ final relayBackendProvider = Provider<RelayBackend>((ref) {
     remoteCompactHistoryProvider,
     (_, enabled) => backend.compactHistory = enabled,
     fireImmediately: true,
-  );
-  // The old default-off preference no longer controls automatic transport selection.
-  unawaited(
-    SharedPreferences.getInstance().then((prefs) => prefs.remove('remote_direct_p2p')).catchError((_) => false),
   );
   ref.onDispose(() => unawaited(backend.close()));
   return backend;
@@ -893,6 +975,7 @@ class RelayAccountController extends AsyncNotifier<RelayAccountState> {
   Future<void> login({String? providerId}) async {
     if (_now.loggingIn) return;
     final backend = _backend;
+    final selection = ref.read(relaySelectionProvider);
     final epoch = ++_epoch;
     ref.read(readListCredentialEpochProvider.notifier).advance();
     state = AsyncData(_now.copyWith(loggingIn: true, error: () => null));
@@ -914,6 +997,16 @@ class RelayAccountController extends AsyncNotifier<RelayAccountState> {
       }
       final user = await session.completed;
       if (!_isCurrent(epoch, backend)) return;
+      // Browser sign-in learns the user only after authorization. Keep the
+      // shortcut for the existing origin slot, not a made-up password slot.
+      if (selection != null &&
+          (selection.scope.$2 == null ||
+              selection.id == RelayAccountSelection(origin: selection.origin, account: user.displayName).id)) {
+        await ref
+            .read(relayAccountsProvider.notifier)
+            .remember(selection.origin, user.displayName, provider: user.provider);
+        if (!_isCurrent(epoch, backend)) return;
+      }
       var failed = false;
       final hosts = await backend.listHosts(refresh: true).catchError((Object _) {
         failed = true;
@@ -944,11 +1037,20 @@ class RelayAccountController extends AsyncNotifier<RelayAccountState> {
 
   Future<void> logout() async {
     final backend = _backend;
+    final selection = ref.read(relaySelectionProvider);
     _cancelPendingLogin();
     final epoch = _epoch;
     ref.read(readListCredentialEpochProvider.notifier).advance();
     await backend.logout();
     if (!_isCurrent(epoch, backend)) return;
+    if (selection?.account != null && !selection!.legacySlot) {
+      // Signing out a scoped account must not bring an old copy of its
+      // session back when the saved row is next opened.
+      await ref
+          .read(relayAccountsProvider.notifier)
+          .remember(selection.origin, selection.account!, scopedCredentials: true);
+      if (!_isCurrent(epoch, backend)) return;
+    }
     unawaited(ref.read(activeHostProvider.notifier).forget((h) => h.kind == HostKind.relay));
     await _signedOut(epoch, backend);
   }

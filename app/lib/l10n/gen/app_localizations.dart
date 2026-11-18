@@ -29495,7 +29495,7 @@ abstract class L10n {
   /// No description provided for @remoteSignedInAccounts.
   ///
   /// In zh, this message translates to:
-  /// **'已登录的账号'**
+  /// **'已保存的服务器与账号'**
   String get remoteSignedInAccounts;
 
   /// No description provided for @remoteEmailIsAccount.

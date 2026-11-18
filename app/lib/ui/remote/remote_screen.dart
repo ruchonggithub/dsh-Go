@@ -12,7 +12,6 @@ import '../../runtime/runtime_state.dart';
 import '../../state/app_info.dart';
 import '../../state/connection_state.dart';
 import '../../state/hosts_state.dart';
-import '../../state/relay_server_entry.dart';
 import '../common/app_dialog.dart';
 import '../common/ask_ai.dart';
 import '../common/overview_card.dart';
@@ -229,16 +228,24 @@ class _ActiveCard extends ConsumerWidget {
                     ? (
                         l10n.remoteSignInAgain,
                         () async {
-                          if (ref.read(relayAccountProvider).value?.user?.provider == 'password') {
-                            final backend = ref.read(relayBackendProvider);
+                          final selection = ref.read(relaySelectionProvider);
+                          final user = ref.read(relayAccountProvider).value?.user;
+                          final saved = ref.read(relayAccountsProvider.notifier).entryFor(selection?.id);
+                          final origin = resolveRelayServer(selection?.origin);
+                          if (origin != null && (user?.provider == 'password' || saved?.provider == 'password')) {
                             final signedIn = await showSelfHostedLogin(
                               context,
-                              initialServer: resolveRelayServer(ref.read(relayServerProvider)),
+                              initialServer: origin,
+                              initialEmail: selection?.account ?? user?.displayName,
                             );
                             if (signedIn == true &&
                                 context.mounted &&
                                 ref.read(activeHostProvider) == active &&
-                                identical(backend, ref.read(relayBackendProvider))) {
+                                ref.read(relaySelectionProvider)?.id ==
+                                    RelayAccountSelection(
+                                      origin: origin,
+                                      account: selection?.account ?? user?.displayName,
+                                    ).id) {
                               reconnect();
                             }
                             return;
@@ -394,102 +401,56 @@ class _SshRow extends ConsumerWidget {
 
 // ── DSH Remote account ───────────────────────────────────────────────────────
 
-/// The signed-in account, with 刷新 / 添加 / 退出 beside it.
-///
-/// When more than one account is signed in, tapping the row opens the others
-/// and picking one switches to it — the computers listed underneath belong to
-/// that account, so this is the control that changes them.
-class _RelayAccountCard extends ConsumerStatefulWidget {
+/// The current account. The same saved-account sheet is used here and in
+/// the host switcher.
+class _RelayAccountCard extends StatelessWidget {
   const _RelayAccountCard({
     required this.account,
-    required this.accounts,
-    required this.selection,
-    required this.refreshing,
+    required this.origin,
+    required this.onChoose,
     required this.onRefresh,
-    required this.onSwitch,
     required this.onAdd,
     required this.onSignOut,
   });
 
   final RelayAccountState account;
-  final List<RelayAccountEntry> accounts;
-  final RelayAccountSelection? selection;
-  final bool refreshing;
+  final String? origin;
+  final VoidCallback? onChoose;
   final VoidCallback onRefresh;
-  final ValueChanged<RelayAccountEntry> onSwitch;
   final VoidCallback onAdd;
   final VoidCallback onSignOut;
 
   @override
-  ConsumerState<_RelayAccountCard> createState() => _RelayAccountCardState();
-}
-
-class _RelayAccountCardState extends ConsumerState<_RelayAccountCard> {
-  bool _open = false;
-
-  @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final account = widget.account;
-    final others = [
-      for (final e in widget.accounts)
-        if (widget.selection == null || e.id != widget.selection!.id || e.account != widget.selection!.account) e,
-    ];
-    final canSwitch = others.isNotEmpty;
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        SettingsTile(
-          icon: AppIcons.account,
-          tinted: false,
-          key: const ValueKey('relay-account-card'),
-          title: account.user!.displayName,
-          subtitle: [if (account.user!.provider case final p?) _providerLabel(p), account.server].join(' · '),
-          onTap: canSwitch ? () => setState(() => _open = !_open) : null,
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (canSwitch)
-                Padding(
-                  padding: const EdgeInsetsDirectional.only(end: 2),
-                  child: Icon(_open ? AppIcons.collapse : AppIcons.expand, size: 18),
-                ),
-              _EdgeIconButton(
-                tooltip: l10n.remoteRefreshHosts,
-                nudge: false,
-                onPressed: widget.refreshing ? null : widget.onRefresh,
-                icon: widget.refreshing
-                    ? const SizedBox.square(dimension: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Icon(AppIcons.refresh, size: 20),
-              ),
-              _EdgeIconButton(
-                tooltip: l10n.remoteAddAccount,
-                nudge: false,
-                onPressed: widget.onAdd,
-                icon: const Icon(AppIcons.add, size: 20),
-              ),
-              _EdgeTextButton(label: l10n.remoteSignOut, onPressed: widget.onSignOut),
-            ],
+    final user = account.user!;
+    return SettingsTile(
+      key: const ValueKey('relay-account-card'),
+      icon: AppIcons.account,
+      tinted: false,
+      title: user.displayName,
+      subtitle: [if (user.provider case final p?) _providerLabel(p), origin ?? account.server].join(' \u00b7 '),
+      onTap: onChoose,
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _EdgeIconButton(
+            tooltip: l10n.remoteRefreshHosts,
+            nudge: false,
+            onPressed: account.refreshing ? null : onRefresh,
+            icon: account.refreshing
+                ? const SizedBox.square(dimension: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(AppIcons.refresh, size: 20),
           ),
-        ),
-        if (_open && canSwitch)
-          for (final entry in others)
-            SettingsTile(
-              key: ValueKey('relay-account-other-${entry.id}'),
-              icon: AppIcons.account,
-              tinted: false,
-              title: entry.displayName,
-              subtitle: [
-                if (entry.provider case final p?) _providerLabel(p),
-                entry.hostLabel,
-                if (entry.needsAccount) l10n.remoteAccountMissing,
-              ].join(' · '),
-              onTap: () {
-                setState(() => _open = false);
-                widget.onSwitch(entry);
-              },
-            ),
-      ],
+          _EdgeIconButton(
+            tooltip: l10n.remoteAddAccount,
+            nudge: false,
+            onPressed: onAdd,
+            icon: const Icon(AppIcons.add, size: 20),
+          ),
+          _EdgeTextButton(label: l10n.remoteSignOut, onPressed: onSignOut),
+        ],
+      ),
     );
   }
 }
@@ -506,19 +467,49 @@ class _RelaySection extends ConsumerWidget {
     final account = async.value ?? const RelayAccountState();
     final active = ref.watch(activeHostProvider);
     final notifier = ref.read(relayAccountProvider.notifier);
+    final selection = ref.watch(relaySelectionProvider);
+    final origin = resolveRelayServer(selection?.origin);
+    final saved = ref.watch(relayAccountsProvider);
+    final hasSaved = saved.isNotEmpty;
+    void choose() => unawaited(showSelfHostedLogin(context));
+    final chooseRow = SettingsTile(
+      key: const ValueKey('relay-choose-account'),
+      icon: AppIcons.swap,
+      tinted: false,
+      title: l10n.remoteSignedInAccounts,
+      onTap: choose,
+    );
 
-    if (!account.signedIn) {
-      // Known before the stored sign-in has been read.
-      final available = ref.watch(relayBackendProvider).available;
-      final server = account.server;
+    final available = ref.watch(relayBackendProvider).available;
+    if (async.isLoading && available) {
       return SettingsSection(
         title: 'DSH Remote',
-        // The credit's link takes taps in the margin below it, so it carries it.
-        margin: available ? RelayCredit.sectionMargin : kSettingsGroupMargin,
-        footer: available
-            ? RelayCredit(server: server.isEmpty || server == 'dsh.r2049.cn' ? null : server)
-            : Text(l10n.remoteUnavailable),
-        children: [_LoginCard(account: account, available: available, loading: async.isLoading && !async.hasValue)],
+        children: [
+          if (hasSaved) chooseRow,
+          SettingsTile(
+            title: l10n.remoteLoading,
+            subtitle: origin,
+            trailing: const SizedBox.square(dimension: 16, child: CircularProgressIndicator(strokeWidth: 2)),
+          ),
+        ],
+      );
+    }
+    if (!account.signedIn) {
+      return SettingsSection(
+        title: 'DSH Remote',
+        margin: RelayCredit.sectionMargin,
+        footer: RelayCredit(server: account.server.isEmpty || account.server == 'dsh.r2049.cn' ? null : account.server),
+        children: [
+          if (hasSaved) chooseRow,
+          _LoginCard(
+            account: account,
+            available: available,
+            origin: origin,
+            email: saved.any((entry) => entry.id == selection?.id && entry.provider == 'password')
+                ? selection?.account
+                : null,
+          ),
+        ],
       );
     }
     return SettingsSection(
@@ -529,20 +520,15 @@ class _RelaySection extends ConsumerWidget {
           ? Text(l10n.remoteSwitchWarning)
           : null,
       children: [
-        // The account row doubles as the account switcher when more than one
-        // account is signed in: its computers are what the rows below are, so
-        // this is where changing account belongs. Adding another account sits
-        // next to 退出 — both act on the account, not on a computer.
         _RelayAccountCard(
           account: account,
-          accounts: ref.watch(relayAccountsProvider),
-          selection: ref.watch(relaySelectionProvider),
-          refreshing: account.refreshing,
+          origin: origin,
+          onChoose: hasSaved ? choose : null,
           onRefresh: () => unawaited(notifier.refresh()),
-          onSwitch: (entry) => _switchAccount(ref, entry),
-          onAdd: () => unawaited(_addAccount(context, ref, account.server)),
-          onSignOut: () => _confirmLogout(context, notifier),
+          onAdd: () => unawaited(showSelfHostedLogin(context, initialServer: origin, addServer: origin == null)),
+          onSignOut: () => _confirmLogout(context, ref, notifier),
         ),
+        if (hasSaved) chooseRow,
         if (account.hosts.isEmpty && account.hostsFailed)
           SettingsTile(
             icon: AppIcons.refresh,
@@ -575,51 +561,9 @@ class _RelaySection extends ConsumerWidget {
     );
   }
 
-
-  /// Switches to [entry] and connects to a computer on it.
-  ///
-  /// The computers belong to the account, so after the switch this section
-  /// re-lists the new account's hosts. If one of them was in use before, use it
-  /// again: changing account usually means "the same job, on my other server",
-  /// and landing on nothing would look like the switch failed. Otherwise take
-  /// the first host that is online, and leave the choice to the person when
-  /// none is.
-  Future<void> _switchAccount(WidgetRef ref, RelayAccountEntry entry) async {
-    final previous = ref.read(activeHostProvider);
-    final previousHost = previous.kind == HostKind.relay ? previous : null;
-    final previousName = previousHost?.name;
-
-    await ref.read(relaySelectionProvider.notifier).set(
-      RelayAccountSelection(origin: entry.origin, account: entry.account),
-    );
-
-    // The account state for the new selection is still loading; wait for the
-    // list rather than connecting to a host that is not there yet.
-    final account = await ref.read(relayAccountProvider.future);
-    if (!account.signedIn || account.hosts.isEmpty) return;
-
-    final wanted = account.hosts.where((h) => h.name == previousName).firstOrNull ??
-        account.hosts.where((h) => h.online).firstOrNull;
-    if (wanted == null) return;
-    ref.read(activeHostProvider.notifier).select(HostRef.relay(wanted.id, name: wanted.name));
-  }
-
-  /// Opens the sign-in sheet on [server] to add another account there, then
-  /// switches to it.
-  Future<void> _addAccount(BuildContext context, WidgetRef ref, String server) async {
-    final sign = await showSelfHostedLogin(context, initialServer: server);
-    if (sign != true) return;
-    // A successful sign-in already selected the new account; connect it so the
-    // person does not have to tap the computer as well.
-    final account = ref.read(relayAccountProvider).value;
-    if (account == null || !account.signedIn) return;
-    final first = account.hosts.where((h) => h.online).firstOrNull;
-    if (first == null) return;
-    ref.read(activeHostProvider.notifier).select(HostRef.relay(first.id, name: first.name));
-  }
-
-  Future<void> _confirmLogout(BuildContext context, RelayAccountController notifier) async {
+  Future<void> _confirmLogout(BuildContext context, WidgetRef ref, RelayAccountController notifier) async {
     final l10n = context.l10n;
+    final owner = ref.read(relayBackendProvider);
     final ok = await showAppDialog<bool>(
       context: context,
       builder: (dialog) => AlertDialog(
@@ -631,7 +575,7 @@ class _RelaySection extends ConsumerWidget {
         ],
       ),
     );
-    if (ok == true) await notifier.logout();
+    if (ok == true && context.mounted && identical(owner, ref.read(relayBackendProvider))) await notifier.logout();
   }
 }
 
@@ -644,11 +588,12 @@ List<RelayAuthProvider> _orderedProviders(List<RelayAuthProvider> providers) => 
 ];
 
 class _LoginCard extends ConsumerWidget {
-  const _LoginCard({required this.account, required this.available, required this.loading});
+  const _LoginCard({required this.account, required this.available, required this.origin, required this.email});
 
   final RelayAccountState account;
   final bool available;
-  final bool loading;
+  final String? origin;
+  final String? email;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -698,35 +643,37 @@ class _LoginCard extends ConsumerWidget {
           ],
           if (account.loggingIn)
             _Waiting(url: account.loginUrl, onCancel: notifier.cancelLogin)
-          else if (account.providers.isEmpty)
-            // No provider list (a Server too old to list them, or unreachable):
-            // one generic browser sign-in.
-            FilledButton.icon(
-              onPressed: available && !loading ? () => unawaited(notifier.login()) : null,
-              icon: const Icon(AppIcons.openExternal, size: 18),
-              label: Text(available ? l10n.remoteBrowserSignIn : l10n.remoteComingSoon),
-            )
-          else
-            ..._signInButtons(context, account, notifier, enabled: available && !loading),
+          else if (available && email == null) ...[
+            if (account.providers.isEmpty)
+              FilledButton.icon(
+                onPressed: () => unawaited(notifier.login()),
+                icon: const Icon(AppIcons.openExternal, size: 18),
+                label: Text(l10n.remoteBrowserSignIn),
+              )
+            else
+              ..._signInButtons(context, account, notifier, enabled: true),
+          ],
           if (account.error case final e?) ...[
             const SizedBox(height: 10),
             Text(e, style: theme.textTheme.bodySmall?.copyWith(color: colors.danger)),
           ],
-          if (available)
-            Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: Center(
-                child: TextButton(
-                  style: TextButton.styleFrom(
-                    foregroundColor: colors.textTertiary,
-                    minimumSize: const Size(0, 36),
-                    textStyle: theme.textTheme.labelMedium,
-                  ),
-                  onPressed: account.loggingIn ? null : () => showSelfHostedLogin(context),
-                  child: Text(l10n.remoteSelfHostedEmailSignIn),
-                ),
+          if (!account.loggingIn) ...[
+            FilledButton.tonalIcon(
+              icon: Icon(email == null ? AppIcons.add : AppIcons.lock, size: 18),
+              onPressed: () =>
+                  showSelfHostedLogin(context, initialServer: origin, initialEmail: email, addServer: origin == null),
+              label: Text(
+                email != null
+                    ? l10n.remoteSignInAgain
+                    : (origin == null ? l10n.remoteAddServer : l10n.remoteSelfHostedEmailSignIn),
               ),
             ),
+            if (origin != null)
+              TextButton(
+                onPressed: () => showSelfHostedLogin(context, addServer: true),
+                child: Text(l10n.remoteAddServer),
+              ),
+          ],
         ],
       ),
     );
@@ -845,7 +792,6 @@ class _RelayRow extends ConsumerWidget {
     );
   }
 }
-
 
 /// How a sign-in provider is named in the account rows.
 String _providerLabel(String p) => switch (p) {
