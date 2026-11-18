@@ -6,10 +6,12 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../companion/companion_voice_source.dart';
+import '../secrets/secure_storage.dart';
+import '../state/android_features.dart';
+import 'speech_audio.dart';
 
 const speechVoiceKeys = VoiceSettingsKeys(
   on: 'speech_voice_enabled',
@@ -34,9 +36,14 @@ final speechVoiceSettingsProvider = NotifierProvider<SpeechVoiceSettingsControll
 );
 
 /// Her voice as it is used: her own settings, or 朗读's when she follows them
-/// (still only when she is switched on, and never cloned).
+/// (still only when she is switched on, and never cloned). On HarmonyOS the
+/// room's speaker plays only the phone's own voice: an external one would be
+/// fetched (and paid for) and then have no player.
 final companionEffectiveVoiceProvider = Provider<CompanionVoiceSettings?>((ref) {
   final own = ref.watch(companionVoiceSettingsProvider);
+  if (own != null && ref.watch(operatingSystemProvider) == 'ohos') {
+    return own.copyWith(source: CompanionVoiceSource.system, follow: false, cloneOn: false);
+  }
   if (own == null || !own.follow) return own;
   final shared = ref.watch(speechVoiceSettingsProvider);
   if (shared == null) return null;
@@ -63,7 +70,7 @@ class CloudAsrSettings {
 class CloudAsrController extends Notifier<CloudAsrSettings> {
   static const _plainKey = 'speech_asr_cloud_v1';
   static const _secretKey = 'speech_asr_cloud_key';
-  static const _secure = FlutterSecureStorage();
+  static const _secure = AppSecureStorage();
   late Future<void> _loaded;
 
   @override
@@ -122,8 +129,8 @@ final cloudAsrProvider = NotifierProvider<CloudAsrController, CloudAsrSettings>(
 /// or her (伙伴小屋's character, speaking with the call's voice).
 enum CallBackdrop { sea, image, companion }
 
-/// The light in the middle of a call: Libraries.dev's voice ring (a glassy
-/// ribbon in the theme's colours), its single grey line, or the glass orb.
+/// The light in the middle of a call: the glass orb (the default), or
+/// Libraries.dev's voice ring (a glassy ribbon in the theme's colours) or its single grey line.
 enum CallVisual { ring, mono, glass }
 
 class CallSettings {
@@ -134,7 +141,8 @@ class CallSettings {
     this.backdrop = CallBackdrop.sea,
     this.image = '',
     this.cue = true,
-    this.visual = CallVisual.ring,
+    this.visual = CallVisual.glass,
+    this.pause = CallPause.normal,
   });
 
   /// Speaking over her stops her (else what is said while she talks is ignored).
@@ -152,8 +160,12 @@ class CallSettings {
 
   /// A soft chime when an answer is slow to start.
   final bool cue;
+
   /// The light in the middle.
   final CallVisual visual;
+
+  /// How long a pause ends what the person says.
+  final CallPause pause;
 
   CallSettings copyWith({
     bool? bargeIn,
@@ -163,6 +175,7 @@ class CallSettings {
     String? image,
     bool? cue,
     CallVisual? visual,
+    CallPause? pause,
   }) => CallSettings(
     bargeIn: bargeIn ?? this.bargeIn,
     spoken: spoken ?? this.spoken,
@@ -171,6 +184,7 @@ class CallSettings {
     image: image ?? this.image,
     cue: cue ?? this.cue,
     visual: visual ?? this.visual,
+    pause: pause ?? this.pause,
   );
 }
 
@@ -197,7 +211,8 @@ class CallSettingsController extends Notifier<CallSettings> {
         backdrop: CallBackdrop.values.asNameMap()[json['backdrop']] ?? CallBackdrop.sea,
         image: json['image'] is String ? json['image'] as String : '',
         cue: json['cue'] != false,
-        visual: CallVisual.values.asNameMap()[json['visual']] ?? CallVisual.ring,
+        visual: CallVisual.values.asNameMap()[json['visual']] ?? CallVisual.glass,
+        pause: CallPause.values.asNameMap()[json['pause']] ?? CallPause.normal,
       );
     } on Object {
       // Defaults for this run.
@@ -210,10 +225,21 @@ class CallSettingsController extends Notifier<CallSettings> {
     return state;
   }
 
+  /// [change] applied to the saved settings once they are in (not to the
+  /// defaults shown before then).
+  Future<void> edit(CallSettings Function(CallSettings saved) change) async {
+    await _loaded;
+    // Applied and taken in at once: another edit waiting too sees this one.
+    if (ref.mounted) await _keep(change(state));
+  }
+
   Future<void> update(CallSettings next) async {
     // After the saved settings are in: they never overwrite a change made meanwhile.
     await _loaded;
-    if (!ref.mounted) return;
+    if (ref.mounted) await _keep(next);
+  }
+
+  Future<void> _keep(CallSettings next) async {
     state = next;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(
@@ -226,6 +252,7 @@ class CallSettingsController extends Notifier<CallSettings> {
         'image': next.image,
         'cue': next.cue,
         'visual': next.visual.name,
+        'pause': next.pause.name,
       }),
     );
   }

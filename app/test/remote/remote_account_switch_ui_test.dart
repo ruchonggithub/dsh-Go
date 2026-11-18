@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:dsh_app/l10n/l10n.dart';
-import 'package:dsh_app/remote/relay/relay_backend.dart';
-import 'package:dsh_app/state/connection_state.dart';
 import 'package:dsh_app/state/hosts_state.dart';
 import 'package:dsh_app/ui/remote/remote_screen.dart';
 
@@ -37,7 +35,6 @@ void main() {
   }
 
   const hostA = RelayHost(id: 'host-a', name: 'A 的电脑', online: true);
-  const hostB = RelayHost(id: 'host-b', name: 'B 的电脑', online: true);
 
   group('the 远程主机 page shows who is signed in', () {
     testWidgets('a signed-in account lists the computers it can drive', (tester) async {

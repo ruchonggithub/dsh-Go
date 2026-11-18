@@ -7,6 +7,8 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../state/android_features.dart';
+
 sealed class SpeechAudioEvent {
   const SpeechAudioEvent();
 }
@@ -52,15 +54,37 @@ final class CallError extends SpeechAudioEvent {
   final String reason;
 }
 
+/// How long the person may pause before what they said counts as finished
+/// (通话设置 → 停顿多久算说完): 快 is how calls were before it was a choice.
+enum CallPause {
+  quick(Duration.zero),
+  normal(Duration(milliseconds: 400)),
+  patient(Duration(milliseconds: 1000));
+
+  const CallPause(this.longer);
+
+  /// How much longer than 快 a finished utterance takes to come through
+  /// (its trailing quiet: TurnPause.doneMs on the native side).
+  final Duration longer;
+}
+
 enum CallStart { ok, permission, microphone, unavailable }
 
 class SpeechAudio {
-  SpeechAudio([MethodChannel? channel]) : _channel = channel ?? const MethodChannel('dsh/speech') {
+  SpeechAudio([MethodChannel? channel]) : this._(channel, false);
+  SpeechAudio.ohos([MethodChannel? channel]) : this._(channel, true);
+
+  SpeechAudio._(MethodChannel? channel, this.requiresSpeakerAck)
+    : _channel = channel ?? const MethodChannel('dsh/speech') {
     _channel.setMethodCallHandler(_heard);
   }
 
   final MethodChannel _channel;
   final _events = StreamController<SpeechAudioEvent>.broadcast();
+
+  /// OH rejects a retired or unavailable route. Its caller must retain that
+  /// failure and commit only a current native acknowledgement.
+  final bool requiresSpeakerAck;
 
   Stream<SpeechAudioEvent> get events => _events.stream;
 
@@ -114,27 +138,55 @@ class SpeechAudio {
 
   Future<void> stop() => _invoke<void>('stop');
 
+  /// OH's owned coordinator must observe a failed native retirement or EOF
+  /// handoff. These use the existing channel protocol without swallowing errors.
+  Future<void> stopChecked() => _channel.invokeMethod<void>('stop');
+  Future<void> endChecked(String id) => _channel.invokeMethod<void>('end', {'id': id});
+
   /// Stream [id] quieter while the person may be speaking over it, or back to full.
   Future<void> duck(String id, bool on) => _invoke<void>('duck', {'id': id, 'on': on});
 
-  Future<CallStart> startCall({required bool bargeIn}) async =>
-      switch (await _invoke<String>('callStart', {'bargeIn': bargeIn})) {
+  Future<CallStart> startCall({required bool bargeIn, CallPause pause = CallPause.normal}) async =>
+      switch (await _invoke<String>('callStart', {'bargeIn': bargeIn, 'pause': pause.name})) {
         'ok' => CallStart.ok,
         'permission' => CallStart.permission,
         'microphone' => CallStart.microphone,
         _ => CallStart.unavailable,
       };
 
+  /// OH's call starts with the current mute choice before publishing any audio.
+  /// Keeping this separate preserves existing startCall overrides and payloads.
+  Future<CallStart> startCallMuted({
+    required bool bargeIn,
+    required bool muted,
+    CallPause pause = CallPause.normal,
+  }) async => switch (await _invoke<String>('callStart', {'bargeIn': bargeIn, 'pause': pause.name, 'muted': muted})) {
+    'ok' => CallStart.ok,
+    'permission' => CallStart.permission,
+    'microphone' => CallStart.microphone,
+    _ => CallStart.unavailable,
+  };
+
   Future<void> stopCall() => _invoke<void>('callStop');
   Future<void> mute(bool on) => _invoke<void>('callMute', {'on': on});
   Future<void> bargeIn(bool on) => _invoke<void>('callBargeIn', {'on': on});
+
+  /// How long a pause ends what the person says, from now on in this call.
+  Future<void> callPause(CallPause pause) => _invoke<void>('callPause', {'pause': pause.name});
 
   /// Another player of the app's voice (the phone's own text-to-speech, a
   /// fetched file) started or stopped: the call listens more strictly meanwhile.
   Future<void> playing(bool on) => _invoke<void>('callPlaying', {'on': on});
 
   /// Loudspeaker or not; the answer is what is in effect.
-  Future<bool> speaker(bool on) async => await _invoke<bool>('callSpeaker', {'on': on}) ?? on;
+  Future<bool> speaker(bool on) async {
+    if (!requiresSpeakerAck) return await _invoke<bool>('callSpeaker', {'on': on}) ?? on;
+    final accepted = await _channel.invokeMethod<bool>('callSpeaker', {'on': on});
+    if (accepted == null) {
+      throw PlatformException(code: 'speech-output', message: 'speaker acknowledgement missing');
+    }
+    return accepted;
+  }
 
   void dispose() {
     _channel.setMethodCallHandler(null);
@@ -143,7 +195,7 @@ class SpeechAudio {
 }
 
 final speechAudioProvider = Provider<SpeechAudio>((ref) {
-  final audio = SpeechAudio();
+  final audio = ref.watch(operatingSystemProvider) == 'ohos' ? SpeechAudio.ohos() : SpeechAudio();
   ref.onDispose(audio.dispose);
   return audio;
 });

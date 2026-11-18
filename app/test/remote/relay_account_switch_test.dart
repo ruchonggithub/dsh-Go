@@ -3,7 +3,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:dsh_app/state/hosts_state.dart';
-import 'package:dsh_app/state/relay_server_entry.dart';
 
 /// Switching account has to reach the thing that decides which computers are
 /// listed. These pin the chain selection → backend → account state, because a

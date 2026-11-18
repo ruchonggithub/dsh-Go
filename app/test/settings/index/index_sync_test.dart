@@ -218,9 +218,9 @@ void main() {
           ),
         ],
       ),
-      // 社区 is the play half: it shows only while 设置 › 娱乐内容 is on, and
-      // tests run with the switch's default (off).
-      absent: {'community'},
+      // Default productivity mode hides the play entries; the HarmonyOS-only
+      // pages are absent on Android too.
+      absent: {'community', 'page:pets', 'page:systemActions', 'page:linuxEnvironment'},
     );
   });
 
@@ -235,11 +235,16 @@ void main() {
   });
 
   testWidgets('关于 DSH Go', (tester) async {
-    await _check(tester, SettingsPageId.about, () => _app(tester, const AboutPage(), _running()));
+    await _check(tester, SettingsPageId.about, () => _app(tester, const AboutPage(), _running()), absent: {'star'});
   });
 
   testWidgets('主题', (tester) async {
-    await _check(tester, SettingsPageId.appearance, () => _app(tester, const AppearancePage(), _running()));
+    await _check(
+      tester,
+      SettingsPageId.appearance,
+      () => _app(tester, const AppearancePage(), _running()),
+      absent: {'wallpaper'},
+    );
   });
 
   testWidgets('宠物', (tester) async {

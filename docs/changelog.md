@@ -2,6 +2,58 @@
 
 每个版本先中文、后英文。发版时把对应版本的正文（不含版本标题）作为 Release 正文，见 `docs/release.md`。
 
+## 1.2.0 · 2026-11-18
+
+### 中文
+
+- **iOS 版（测试）。** 这一版起提供未签名的 iOS 安装包 `dsh-go-1.2.0-ios-unsigned.ipa`，需要用爱思助手、AltStore 等工具自己签名后安装。用免费 Apple ID 签名时 Bundle ID 会被改掉，部分能力（如 Siri、分享扩展、后台）可能用不了。iOS 版只在少数真机上试过，问题请开 issue。
+- **鸿蒙版合入主线。** 鸿蒙版的代码已经和安卓、iOS 共用一套，这一版暂时不提供 HAP 安装包，签名就绪后再补到这个版本下。
+- **酒馆。** 酒馆助手的接口补齐，支持原生 MVU 变量；能把 DeepSeek 网页里聊不下去的对话导入酒馆接着聊；导入大卡和长聊天时明显不卡了。
+- **让 AI 做一只宠物。** 宠物页新增「让 AI 做一只宠物」：带上自己的素材（GIF、逐帧图、Aseprite 导出或单张图），AI 会把它转成宠物包；转换时保留中文动画名，网页模式也能用。
+- **按你问过的话搜索会话。** 会话搜索能搜到你自己问过的话和回复摘要，句子中间的中文词也能搜到。
+- **手机操控确认改成三档**：允许一次、本轮允许、取消；设置里可以列一份「始终允许」的 App。停止只作用于当前这一轮，下一轮自动恢复。免确认模式下截图和点击不再弹卡。
+- **长回复更流畅。** 长回复分块显示，流式输出时只重排最后一块。
+- 其他改进：选 English 时 App 写给引擎的 AGENTS.md 也用英文；伙伴包的大小上限放宽，投稿失败会说清原因；桌面小组件的默认文字跟随 App 语言；跳过的版本换了更新源后也算跳过。
+- **修复。** 安卓引擎在某些情况下重启被锁死；DeepSeek 的拒绝回复和无名错误被当成网络错误；生成图片时网关返回空链接导致图片丢失；首次 DNS 失败占用当天的生成额度；回合结束但没有答复时没有任何提示；Windows 主机的盘符路径和链接打不开、长文件名存不到手机；换启动画面或壁纸时旧文件被提前删掉；快速切换主机后最近会话停在上一个；未发出的草稿丢失；读屏无法点击详情页签和主题选项。
+- **验证情况。** iOS 版和鸿蒙版都只在 CI 里编译并跑过模拟器测试，真机只做过零星试用；安卓版的新改动大部分只经过自动测试。遇到问题请导出诊断并开 issue。
+
+### English
+
+- **iOS (testing).** Starting with this version there is an unsigned iOS package, `dsh-go-1.2.0-ios-unsigned.ipa`, which you sign yourself with a tool such as AltStore before installing. Signing with a free Apple ID changes the bundle ID, and some features (such as Siri, the share extension and background work) may not be available. The iOS version has only been tried on a few real devices; please open an issue if something goes wrong.
+- **HarmonyOS joins the main line.** The HarmonyOS code now shares one code base with Android and iOS. This version doesn't ship a HAP yet; it will be added to this release once signing is ready.
+- **Tavern.** The Tavern Helper interfaces are complete, with native MVU variables; conversations that ran out of room on the DeepSeek website can be imported into Tavern and continued; importing large cards and long chats no longer stutters.
+- **Have the AI make a pet.** The pets page has a new Have the AI make a pet entry: bring your own art (GIFs, frame sequences, Aseprite exports or a single image) and the AI turns it into a pet pack; Chinese animation names are kept, and it works in web mode too.
+- **Search chats by what you asked.** Chat search finds your own questions and reply summaries, including Chinese words in the middle of a sentence.
+- **Phone control confirmation has three choices**: allow once, allow for this turn, or cancel, and Settings can keep a list of always-allowed apps. Stop only applies to the current turn; the next turn starts fresh. Screenshots and taps no longer show a card when confirmation is off.
+- **Smoother long replies.** Long replies are rendered in blocks, and while streaming only the last block is laid out again.
+- Other improvements: with English selected, the AGENTS.md the app writes for the engine is in English too; companion pack size limits are looser and failed submissions say why; the home screen widget's default text follows the app language; a skipped version stays skipped after switching update source.
+- **Fixes.** The Android engine getting stuck on restart in some cases; DeepSeek refusals and unnamed errors being reported as network errors; images lost when the gateway returned an empty link; a first DNS failure using up the day's generation budget; no notice when a turn ended without an answer; drive-letter paths and links from Windows hosts not opening, and long file names not saving to the phone; the old file being deleted too early when changing the launch screen or wallpaper; recent chats sticking to the previous host after switching quickly; unsent drafts being lost; screen readers not being able to tap detail tabs and theme options.
+- **Testing.** The iOS and HarmonyOS versions have only been compiled and run on simulators in CI, with only occasional tries on real devices; most of the new Android changes have only been checked by automated tests. If you run into a problem, please export diagnostics and open an issue.
+
+## 1.1.0 · 2026-11-15
+
+### 中文
+
+- **语音：朗读、语音输入和语音通话。** 回复可以用 DeepSeek 的声音朗读，输入框可以说话输入，也可以直接和她语音通话。通话里能随时打断她，她会自己判断你说完了再接话，有实时字幕；「停顿多久算说完」可以选，默认多等一会儿。通话中可以换声音和识别方式。用账号登录时语音接口不认账号，会改用 API Key。
+- **酒馆：玩法包和做卡工具。** 新增玩法包；做卡时可以让 AI 改卡、挑着应用改动、看历史版本、看最终提示词，还能先试玩。长对话不再越聊越卡（显示、用量统计、读对话都快了很多）。支持工具回合和自定义模型渠道，数值可以手填；回复长到顶栏下面时顶栏会加遮罩。
+- **手机操控：悬浮条和不打扰模式。** 操控时屏幕边缘换成柔和的色带；悬浮条可以拖动、贴边，小球闲置时半藏在边上。不打扰模式选好通道、连上就能用，不再被一整套准入检查拦住；主屏读不到当前应用时改成确认一次，不再直接拒绝。
+- **使用统计 v3。** 新增酒馆、伙伴小屋、语音通话和 token 用量。
+- **桌宠更活泼。** 反应有多种动画，彩蛋在各种状态下都能触发，新增「搬东西」动作。
+- 其他新功能：创意工坊的投稿改用 GitHub 账号登录，默认连接 go.dshtui.com；自定义启动画面在填满模式下可以缩放和调整位置；新增九个界面特效。
+- **修复。** 进语音通话闪退；发给模型的内部提示不再出现在对话里；远程连接点「重连」立刻重连；伙伴小屋在旧版系统 WebView 上打不开、记忆保存的回包丢了列表不刷新；悬浮宠物在系统重新允许动画后不动；从系统设置打开实时活动回来后不补发；自动检查更新时中途关掉仍弹更新页；深色模式下分段选择器的滑块看不见；子代理都停了标题栏的忙碌点还在转；DeepSeek 图片附件丢失被当成网络错误。引擎运行时的 proot 升到 5.1.107.102（主要是硬链接模拟的修复）。
+- **验证情况。** 语音、悬浮条、不打扰模式和 proot 升级只在自动测试和编译检查里验证过，没有在真机上完整走过。遇到问题请导出诊断并开 issue。
+
+### English
+
+- **Voice: read aloud, voice input and voice calls.** Replies can be read aloud in DeepSeek's voice, you can dictate in the input box, or call her directly. During a call you can interrupt her at any time; she works out when you've finished before answering, with live captions. How long a pause counts as finished is adjustable and defaults to waiting a little longer. You can change the voice and the recognition method mid-call. When signed in with an account the speech service won't accept, it falls back to your API key.
+- **Tavern: play packs and card authoring.** Play packs are new. While making a card you can have the AI revise it, pick which changes to apply, browse past versions, see the final prompt and try it out first. Long chats no longer slow down as they grow (display, usage and loading are all much faster). Tool turns and custom model providers are supported, numbers can be typed in, and the top bar gets a scrim when a long reply scrolls under it.
+- **Phone control: overlay bar and Do Not Disturb.** The screen edge shows a soft band while the app is in control; the overlay bar can be dragged and docked to an edge, and the ball tucks half away when idle. Do Not Disturb works as soon as a channel is chosen and connected, without the old admission checks; when the home screen can't tell which app is in front, it asks you once instead of refusing.
+- **Usage stats v3.** Adds Tavern, the companion room, voice calls and token usage.
+- **Livelier pets.** Reactions have several animations, easter eggs trigger in every state, and there's a new carrying action.
+- Other new features: Creative Workshop submissions now sign in with GitHub, and the workshop connects to go.dshtui.com by default; a custom launch screen in fill mode can be zoomed and repositioned; nine new interface effects.
+- **Fixes.** A crash on entering a voice call; internal notes meant for the model no longer show up in the chat; Reconnect for remote connections reconnects right away; the companion room failing to open on older system WebViews, and its memory list not refreshing when a save reply was lost; the floating pet staying still after the system re-enables animations; the live activity not being re-posted after returning from system settings; the update page still appearing when an automatic check was turned off midway; the segmented control's thumb vanishing in dark mode; the busy dot in the title bar spinning after all sub-agents had stopped; a lost DeepSeek image attachment being reported as a network error. The engine runtime's proot is now 5.1.107.102 (mostly fixes to hard-link emulation).
+- **Testing.** Voice, the overlay bar, Do Not Disturb and the proot update have only been checked by automated tests and builds, not fully on a real phone. If you run into a problem, please export diagnostics and open an issue.
+
 ## 1.0.16 · 2026-11-13
 
 ### 中文
@@ -421,12 +473,12 @@
 ### 中文
 
 - DSH Remote 更省流量：会话列表不再在每次对话状态变化时整份重新下载；App 切到后台 30 秒后，进行中的对话暂停逐字推送，回到前台时一次同步到最新（会短暂显示同步中）；连接有数据往来时不再额外发送检测请求，网络慢时也不容易误判断线、反复重连。
-- DSH Remote 跟进 ds-harness-remote 的最新协议：主机插件更新到 0.6.0 后，远程流量会改走服务器分配的独立中继节点，减轻主服务器的压力；协议校验也和上游保持一致。感谢 DSH Remote 作者李国宝。
+- DSH Remote 跟进 ds-harness-remote 的最新协议：主机插件更新到 0.6.0 后，远程流量会改走服务器分配的独立中继节点，减轻主服务器的压力；协议校验也和上游保持一致。
 
 ### English
 
 - DSH Remote uses less data: the session list is no longer downloaded in full every time a chat changes state; 30 seconds after DSH Go goes to the background, a running chat stops streaming word by word and catches up in one go when you return (it shows syncing briefly); and the connection no longer sends extra health checks while data is flowing, so a slow network is less likely to look like a drop and reconnect over and over.
-- DSH Remote follows the latest ds-harness-remote protocol: once the Host plugin is on 0.6.0, remote traffic moves to a separate Relay node assigned by the server, taking load off the main server; protocol checks match upstream too. Thanks to liguobao, the author of DSH Remote.
+- DSH Remote follows the latest ds-harness-remote protocol: once the Host plugin is on 0.6.0, remote traffic moves to a separate Relay node assigned by the server, taking load off the main server; protocol checks match upstream too.
 
 ## 1.0.1 · 2026-10-30
 

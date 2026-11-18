@@ -78,8 +78,10 @@ class VoiceInputController extends ChangeNotifier with WidgetsBindingObserver {
     Object? Function()? inputOwner,
     Future<VoiceMode> Function()? mode,
     bool Function()? modelReady,
+    bool Function()? harmony,
     this._cloud,
     this._cloudLikely,
+    this._signedIn,
     this._liveWords,
     this.onRecognized,
     this.requiredProviderId,
@@ -87,10 +89,19 @@ class VoiceInputController extends ChangeNotifier with WidgetsBindingObserver {
   }) : _mode = mode ?? _automatic,
        _inputOwner = inputOwner ?? client,
        _modelReady = modelReady ?? _noModel,
+       _harmony = harmony ?? _noModel,
        _observing = observeLifecycle {
-    if (_observing) WidgetsBinding.instance.addObserver(this);
+    if (_observing) {
+      final binding = WidgetsBinding.instance;
+      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) {
+        _foreground = binding.lifecycleState == AppLifecycleState.resumed;
+      }
+      binding.addObserver(this);
+    }
     unawaited(refresh());
   }
+
+  String get _noRecognizer => _harmony() ? appL10n.harmonyVoiceSystemUnavailable : appL10n.voiceConfigureEither;
 
   static Future<VoiceMode> _automatic() async => VoiceMode.auto;
   static bool _noModel() => false;
@@ -110,12 +121,19 @@ class VoiceInputController extends ChangeNotifier with WidgetsBindingObserver {
   /// automatic mode then records for it instead of trying the phone service.
   final bool Function() _modelReady;
 
+  /// HarmonyOS: the recogniser is the system's own, so there is none to choose,
+  /// and its engine has no model to download.
+  final bool Function() _harmony;
+
   /// The cloud recognizer for a mode, if any (DeepSeek's, or the person's own).
   final VoiceCloudResolver? _cloud;
 
   /// A cloud recognizer is probably there (settings only, nothing asked):
   /// the microphone shows even without a phone or engine recognizer.
   final bool Function()? _cloudLikely;
+
+  /// Signed in to a DeepSeek account (for saying why DeepSeek cannot listen).
+  final bool Function()? _signedIn;
 
   /// Words as they are spoken, from the phone's streaming recognizer (null
   /// when its model is not downloaded): shown as provisional text while a
@@ -332,7 +350,7 @@ class VoiceInputController extends ChangeNotifier with WidgetsBindingObserver {
           !_caps.recorder
               ? appL10n.chatVoiceMicrophoneFailed
               : _runMode == VoiceMode.deepseek
-              ? appL10n.speechNoCredential
+              ? (_signedIn?.call() ?? false ? appL10n.speechAccountUnusable : appL10n.speechNoCredential)
               : appL10n.speechCloudNotSetUp,
           change: true,
         ),
@@ -343,7 +361,16 @@ class VoiceInputController extends ChangeNotifier with WidgetsBindingObserver {
         _runMode == VoiceMode.system || (_runMode == VoiceMode.auto && _caps.recognizer && !_caps.systemUnreliable);
     if (system && !_caps.recognizer) {
       _finish();
-      _say(VoiceMessage(appL10n.voiceChooseSystem, change: true));
+      _say(
+        VoiceMessage(
+          _harmony()
+              ? appL10n.harmonyVoiceSystemUnavailable
+              : wordsForIos
+              ? appL10n.iosVoiceAllowSystem
+              : appL10n.voiceChooseSystem,
+          change: true,
+        ),
+      );
       return;
     }
     final value = input.value;
@@ -367,12 +394,7 @@ class VoiceInputController extends ChangeNotifier with WidgetsBindingObserver {
       if (!_current(operation)) return;
       if (target == null) {
         _finish();
-        _say(
-          VoiceMessage(
-            _runMode == VoiceMode.engine ? appL10n.voiceConfigureEngine : appL10n.voiceConfigureEither,
-            change: true,
-          ),
-        );
+        _say(VoiceMessage(_runMode == VoiceMode.engine ? appL10n.voiceConfigureEngine : _noRecognizer, change: true));
         return;
       }
       await _startRecorder(operation, target);
@@ -550,7 +572,7 @@ class VoiceInputController extends ChangeNotifier with WidgetsBindingObserver {
     if (!_current(operation)) return;
     if (target == null) {
       _finish();
-      _say(VoiceMessage(appL10n.voiceConfigureEither, change: true));
+      _say(VoiceMessage(_noRecognizer, change: true));
       return;
     }
     await _startRecorder(operation, target, fallback: true);

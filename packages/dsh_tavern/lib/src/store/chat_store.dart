@@ -9,15 +9,24 @@ import 'package:sqlite3/sqlite3.dart';
 import '../api.dart';
 import '../authoring.dart';
 import '../authoring_run.dart';
+import '../gameplay.dart';
+import '../gameplay_bindings.dart';
+import '../gameplay_packs.dart';
 import '../import_report.dart';
+import '../io/authoring_text.dart';
+import '../io/gameplay_pack_codec.dart';
 import '../llm/tool_usage.dart';
 import '../tools.dart';
+import '../worldinfo/world_info.dart';
 
 part 'tool_store.dart';
 part 'authoring_store.dart';
 part 'authoring_authority_store.dart';
 part 'authoring_run_store.dart';
 part 'authoring_seed_store.dart';
+part 'gameplay_pack_store.dart';
+part 'gameplay_snapshot_store.dart';
+part 'gameplay_binding_store.dart';
 
 // Mark only persisted ancestor-path damage while preserving legacy StateError semantics.
 class _StoredAncestorDataError extends StateError {
@@ -232,7 +241,7 @@ class ChatStore {
     return ChatStore._(database, clock: clock, createId: createId);
   }
 
-  static const schemaVersion = 12;
+  static const schemaVersion = 16;
 
   // Keys are destination versions. Future upgrades register every successor
   // here and increase schemaVersion; no existing schema is dropped or replayed.
@@ -250,6 +259,10 @@ class ChatStore {
     10: _schemaV10,
     11: _schemaV11,
     12: _schemaV12,
+    13: _gameplayPackSchema,
+    14: _gameplayBindingSchema,
+    15: _gameplayWorldInfoPolicySchema,
+    16: _gameplayCastImportsSchema,
   };
   static const _schemaV12 = '$_authoringRunSchema\n$_authoringSeedSchema';
   final Database _db;
@@ -1045,6 +1058,19 @@ class ChatStore {
             UNION SELECT chat_id, character_id FROM group_members) ids
           JOIN chats c ON c.id = ids.chat_id GROUP BY ids.character_id'''))
         row['character_id'] as String: (count: row['chat_count'] as int, lastAt: _date(row['last_at'])),
+    };
+  }
+
+  /// The chats taken in from a DeepSeek export, by the conversation each came
+  /// from (its id in the export).
+  Map<String, ({String chatId, String characterId})> deepSeekChats() {
+    _ensureOpen();
+    return {
+      for (final row in _db.select(
+        r'''SELECT id, character_id, json_extract(metadata, '$.dshgo.deepseek.sessionId') AS source
+          FROM chats WHERE 'text' = json_type(metadata, '$.dshgo.deepseek.sessionId')''',
+      ))
+        row['source'] as String: (chatId: row['id'] as String, characterId: row['character_id'] as String),
     };
   }
 

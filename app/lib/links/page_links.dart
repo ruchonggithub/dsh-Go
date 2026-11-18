@@ -8,13 +8,16 @@
 // Pages only, from a fixed list: the settings index's pages and rows (a row
 // opens its page) and a few 全部功能 pages; nothing that switches the
 // conversation or the host, opens a sheet, runs an action, or needs an open
-// conversation. An unknown page gets the router's 「无法打开这个链接」.
+// conversation. An unknown page gets the router's 「无法打开这个链接」; one this
+// OS doesn't have yet says that instead.
 
 import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../l10n/l10n.dart';
+import '../state/android_features.dart';
 import '../state/entertainment_state.dart';
 import '../ui/companion/companion_page.dart';
 import '../ui/features/feature_catalog.dart';
@@ -81,24 +84,15 @@ Widget? pageForId(String id, String? sessionId) {
 
 typedef PageResolver = Widget? Function(String id, String? sessionId);
 
-/// Pages that belong to the entertainment half (`state/entertainment_state.dart`):
-/// closed while the switch is off, open while it is on.
-///
-/// [companionPageLink] and [tavernPageLink] have no catalog entry, so they are
-/// named here. The rest of the play half — forum, community, ds-bot — is a
-/// catalog entry like any other, and gets its answer from
-/// [entertainmentPageForId] rather than from a second list that could drift.
+// Companion and tavern do not have catalog entries. Other entertainment
+// links are identified by the same marker the catalog uses.
 const _entertainmentPageIds = <String>{companionPageLink, tavernPageLink};
 
-/// [pageForId] with the entertainment switch taken into account.
-///
-/// A closed entry resolves to null, which the router already treats as "cannot
-/// open this link". The id stays recognised: an old note's link fails honestly
-/// instead of being reported as a link the app does not know.
+/// [pageForId] with the entertainment switch taken into account. A closed
+/// entry keeps its link id but resolves to null, so the router does not open it.
 Widget? entertainmentPageForId(String id, String? sessionId, {required bool allowed}) {
   if (!allowed) {
     if (_entertainmentPageIds.contains(id)) return null;
-    // A catalog entry marked `entertainment` is the play half too.
     for (final section in featureSections) {
       for (final item in section.items) {
         if (item.id == id && item.entertainment) return null;
@@ -108,20 +102,22 @@ Widget? entertainmentPageForId(String id, String? sessionId, {required bool allo
   return pageForId(id, sessionId);
 }
 
-/// [pageForId] (tests swap in light pages).
-///
-/// Entertainment off: a link to one of [_entertainmentPageIds], or to a catalog
-/// entry marked `entertainment`, resolves to nothing, so the router takes its
-/// usual failure path — the page does not open and 「无法打开这个链接」 is shown.
-/// The switch is read at call time, not when this provider is built: [LinkHost]
-/// reads the resolver once at startup, and the preference can change afterwards.
-final pageLinkResolverProvider = Provider<PageResolver>(
-  (ref) => (id, sessionId) => entertainmentPageForId(
-    id,
-    sessionId,
-    allowed: ref.read(entertainmentEnabledProvider),
-  ),
-);
+/// Resolve the platform's page, then apply the current productivity choice.
+/// Read the choice at call time: the link host keeps this resolver while the
+/// user can change the switch.
+final pageLinkResolverProvider = Provider<PageResolver>((ref) {
+  final os = ref.watch(operatingSystemProvider);
+  final android = ref.watch(androidSystemFeaturesProvider);
+  return (id, sessionId) {
+    if (os == 'ohos') {
+      id = SettingsIndex.ohosLink(id);
+      if (SettingsIndex.androidOnlyLink(id)) return null;
+    } else if (SettingsIndex.ohosOnlyLink(id) || (!android && SettingsIndex.androidOnlyLink(id, ios: os == 'ios'))) {
+      return null;
+    }
+    return entertainmentPageForId(id, sessionId, allowed: ref.read(entertainmentEnabledProvider));
+  };
+});
 
 /// Routes `dshgo://open/…` to its page, pushed over the home route. [session]
 /// reads the conversation open in the chat. Returns the unregister function.
@@ -131,7 +127,11 @@ VoidCallback registerPageLinks(LinkRouter router, {String? Function()? session, 
       final context = router.context;
       if (id == null || context == null || !context.mounted) return false;
       final widget = page(id, session?.call());
-      if (widget == null) return false;
+      if (widget == null) {
+        if (!SettingsIndex.androidOnlyLink(id)) return false;
+        router.toast(appL10n.harmonyPageUnavailable);
+        return true;
+      }
       unawaited(Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => widget)));
       return true;
     });

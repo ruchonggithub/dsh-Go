@@ -108,6 +108,15 @@ final class _AuthoringPromptContextCapture {
   }
 
   void prepareBeforeUser() {
+    turn.gameplayInitializing = parent == null && turn.chat.currentLeafId == null;
+    final gameplayIssues = _gameplayValueIssues(
+      turn.gameplay,
+      turn.currentState,
+      initializing: turn.gameplayInitializing,
+      previousConfig: turn.gameplayPreviousConfig,
+    );
+    turn.gameplayValueEligible = gameplayIssues.isEmpty;
+    turn.statePreparationIssues.addAll(gameplayIssues);
     final preparation = _prepareSecretBindingFromFacts(
       turn,
       hostData,
@@ -140,6 +149,9 @@ final class _AuthoringPromptContextCapture {
       }
       authorization = _secretStateSource(persistent);
       story = persistent;
+      if (turn.gameplay case final config?) {
+        turn.gameplayPreviousConfig = config;
+      }
     }
     _prepareStateTurn(turn, hostData);
     turn.directorPrepared = _prepareDirectorFromFacts(
@@ -190,6 +202,7 @@ final class _AuthoringPromptContextCapture {
     if (inspection != null) {
       turn.inspection = inspection;
     }
+    turn.inspection = _gameplayInspection(turn.inspection, turn.gameplay);
   }
 }
 
@@ -234,6 +247,9 @@ final class _AuthoringPromptContextCapture {
     groupNames: view.names,
     groupNotMuted: view.enabledNames,
     preset: preset,
+    messageVariables: turn.state['messageVariables'],
+    messageVariablesExists: turn.state.containsKey('messageVariables'),
+    packRegex: turn.gameplayResources.regex,
   );
   final text = _preparePromptUser(environment, input, regexTrace: regexTrace);
   saveGlobals?.call();
@@ -241,7 +257,18 @@ final class _AuthoringPromptContextCapture {
     turn.state,
     environment,
     stateCardData: view.host.card.data,
-    stateEnabled: turn.settings['stateEnabled'] != false,
+    stateEnabled:
+        turn.settings['stateEnabled'] != false &&
+        (turn.gameplay == null ||
+            parent == null &&
+                turn.chat.currentLeafId == null &&
+                _gameplayValueIssues(
+                  turn.gameplay,
+                  turn.state,
+                  initializing: true,
+                  previousConfig: turn.gameplayPreviousConfig,
+                ).isEmpty),
+    gameplay: turn.gameplay,
   );
   turn.cancellation.check();
   final at = DateTime.fromMillisecondsSinceEpoch(turn.at.millisecondsSinceEpoch, isUtc: true);
@@ -282,6 +309,11 @@ final class _AuthoringPromptContextCapture {
   );
   turn.metadata = ChatJsonlCodec().metadataForState(turn.chat, saved);
   turn.state = state;
+  if (turn.gameplay case final config?) {
+    if (state['dshgoPackDefinitionConfigId'] == config.effectiveConfigId) {
+      turn.gameplayPreviousConfig = config;
+    }
+  }
   turn.inspection = turn.inspection.copyWith(contextNodeId: message.nodeId);
   return (
     parent: message.nodeId,
@@ -563,15 +595,29 @@ extension _AuthoringPromptContexts on TavernEngine {
         defaultPresetId != null) {
       selectPreset(defaultPresetId);
     }
+    final presetWorking = _captureAuthoringPresetWorking(globalSettings, admissionChat, selectedPresetId, real: real);
     final director = real ? _directors.latestSuccess(chat.id) : null;
     final rawTurnSettings = _authoringContextSettings(
       globalSettings,
       chat,
       metadata,
       selectedPreset: presetRaw,
+      selectedPresetId: selectedPresetId,
+      presetWorking: presetWorking,
       managedRegex: const [],
     );
     final admissionSettings = _personaSettings(rawTurnSettings, persona);
+    final gameplayAdmission = _captureGameplayAdmission(
+      this,
+      characterId: actorId,
+      chatId: real ? chat.id : null,
+      settings: admissionSettings,
+    );
+    final historicalGameplay = _gameplayHistoricalConfig(this, initialState);
+    final savedConfigId = initialState['dshgoPackDefinitionConfigId'];
+    final gameplayConfigRows = _store.readGameplayConfigurationRows([
+      if (savedConfigId is String && savedConfigId.isNotEmpty) savedConfigId,
+    ]);
     final secret = real && kind != _TurnKind.impersonate && _secretsEnabled(admissionSettings)
         ? _store.agentRunsByKind(chat.id, const {'director.secret_proposal'}, limit: 1).firstOrNull
         : null;
@@ -598,16 +644,32 @@ extension _AuthoringPromptContexts on TavernEngine {
     final pendingResources = <String, Future<_AuthoringCapturedResource>>{};
     final auditReads = <String, _AuthoringAuditRead>{};
     final audits = _AuthoringCapturedAudits(auditReads);
+    final secretDefinitions = <String, _AuthoringSecretDefinitionRead>{};
     final reservedProofIds = <String>{if (director != null) director.id, if (secret != null) secret.id};
     final proofs = _AuthoringSecretProofs(
       captureId: captureId,
       chatId: real ? chat.id : null,
       captured: audits,
+      capturedDefinitions: secretDefinitions,
       reservedIds: reservedProofIds,
     );
 
     void checkAdmission() {
       cancellation.check();
+      if (real && !_store.toolChatExists(admissionChat.id) ||
+          _captureAuthoringPresetWorking(globalSettings, admissionChat, selectedPresetId, real: real).token !=
+              presetWorking.token) {
+        _authoringContextConflict();
+      }
+      if (!_gameplayAdmissionCurrent(this, gameplayAdmission)) {
+        _authoringContextConflict();
+      }
+      final currentConfigRows = _store.readGameplayConfigurationRows(gameplayConfigRows.keys);
+      for (final entry in gameplayConfigRows.entries) {
+        if (currentConfigRows[entry.key] != entry.value) {
+          _authoringContextConflict();
+        }
+      }
       if (_authoringAuthority.domainId != domain ||
           !identical(_authoringConfigVersion, configVersion) ||
           !identical(_personas.authoringVersion, personaVersion) ||
@@ -675,6 +737,24 @@ extension _AuthoringPromptContexts on TavernEngine {
       }
     }
 
+    void captureSecretDefinition(String id) {
+      if (secretDefinitions.containsKey(id)) {
+        return;
+      }
+      try {
+        // The raw row, including absence, is independent seal evidence.
+        // A parse/read failure stays deferred at this definition's own slot.
+        final rows = _store.readGameplayConfigurationRows([id]);
+        final historical = _gameplayHistoricalConfig(this, {'dshgoPackDefinitionConfigId': id});
+        for (final entry in rows.entries) {
+          gameplayConfigRows.putIfAbsent(entry.key, () => entry.value);
+        }
+        secretDefinitions[id] = (definition: historical.config?.secrets, error: null, stack: null);
+      } catch (error, stack) {
+        secretDefinitions[id] = (definition: null, error: error, stack: stack);
+      }
+    }
+
     void captureLedger(Map<String, Object?> saved) {
       if (!real) {
         return;
@@ -682,10 +762,29 @@ extension _AuthoringPromptContexts on TavernEngine {
       final ledger = _SecretLedger(saved);
       for (final binding in ledger.bindings) {
         reservedProofIds.add(binding['bindingId']! as String);
-        captureAudit(binding['bindReceiptId']! as String);
+        final receiptId = binding['bindReceiptId']! as String;
+        captureAudit(receiptId);
+        final receipt = auditReads[receiptId]?.row;
+        if (!_secretProofMatches(receipt, binding)) {
+          continue;
+        }
+        final proposalId = receipt!.result['proposalRunId'];
+        if (proposalId is! String || proposalId != binding['proposalRunId']) {
+          continue;
+        }
+        // Child reads keep separate missing/error facts. They cannot erase a
+        // successfully captured committed bind receipt.
+        captureAudit(proposalId);
+        final configId = _secretBindingConfigId(binding, auditReads[proposalId]?.row);
+        if (configId != null) {
+          captureSecretDefinition(configId);
+        }
       }
     }
 
+    if (kind != _TurnKind.impersonate && _secretsEnabled(admissionSettings)) {
+      captureLedger(initialState);
+    }
     final cards = <String, StoredCharacter>{};
     final cardDocuments = <String, Map<String, Object?>>{};
     for (final id in {chat.characterId, actorId, ...?group?.members.map((value) => value.characterId)}) {
@@ -724,9 +823,34 @@ extension _AuthoringPromptContexts on TavernEngine {
             cancellation,
           );
     final settings = _personaSettings(
-      _authoringContextSettings(globalSettings, chat, metadata, selectedPreset: presetRaw, managedRegex: managedRegex),
+      _authoringContextSettings(
+        globalSettings,
+        chat,
+        metadata,
+        selectedPreset: presetRaw,
+        selectedPresetId: selectedPresetId,
+        presetWorking: presetWorking,
+        managedRegex: managedRegex,
+      ),
       persona,
     );
+    _GameplayRuntime? prospectiveGameplay;
+    if (gameplayAdmission.hasActivePacks || historicalGameplay.referenced || hostOwner != null) {
+      checkAdmission();
+      prospectiveGameplay = await _prepareGameplayRuntime(
+        this,
+        gameplayAdmission,
+        hostData: host.card.data,
+        settings: settings,
+        force: historicalGameplay.referenced || hostOwner != null,
+        capturedCards: {
+          for (final id in {chat.characterId, actorId, ...?group?.members.map((member) => member.characterId)})
+            id: cards[id]?.card.data,
+        },
+      );
+      cancellation.check();
+    }
+    final gameplay = gameplayAdmission.hasActivePacks || historicalGameplay.referenced ? prospectiveGameplay : null;
     final config = TavernModelConfig(
       apiKey: _noAuthoringTransportKey,
       model: selectedConfig.model,
@@ -750,6 +874,14 @@ extension _AuthoringPromptContexts on TavernEngine {
       groupView: group == null ? null : _GroupView(group, host, cards),
       previewId: captureId,
       previewCancellation: cancellation,
+      gameplayAdmission: gameplayAdmission,
+      gameplay: gameplay,
+    );
+    turn.gameplayPreviousConfig = historicalGameplay.config;
+    turn.gameplayResources = _resolveGameplayResources(
+      _GameplayResourceCapture.fromAdmission(gameplayAdmission),
+      settings,
+      actorId: actorId,
     );
     turn.originalTarget = target;
     turn.directorCaptured = director;
@@ -798,11 +930,14 @@ extension _AuthoringPromptContexts on TavernEngine {
         groupInitial: initialGroupState,
         liveLocal: liveLocal == null ? null : (leaf: liveLocal.leaf, values: _runtimeCopy(liveLocal.values)),
         rawHostData: host.card.data,
+        prospectiveGameplay: prospectiveGameplay,
         settingsForMetadata: (currentChat, currentMetadata) => _authoringContextSettings(
           globalSettings,
           currentChat,
           currentMetadata,
           selectedPreset: presetRaw,
+          selectedPresetId: selectedPresetId,
+          presetWorking: presetWorking,
           managedRegex: managedRegex,
         ),
         readNode: (id) {
@@ -914,6 +1049,14 @@ extension _AuthoringPromptContexts on TavernEngine {
         turn.sourceFile = sourceFile;
         turn.variables = local;
         turn.state = _copy(initialState);
+        turn.gameplay = gameplayAdmission.hasActivePacks || initialState.containsKey('dshgoPackDefinitionConfigId')
+            ? prospectiveGameplay
+            : null;
+        turn.gameplayPreviousConfig =
+            prospectiveGameplay != null &&
+                initialState['dshgoPackDefinitionConfigId'] == prospectiveGameplay.effectiveConfigId
+            ? prospectiveGameplay
+            : historicalGameplay.config;
         if (sourceFile != null) {
           turn.state['chatJsonlSourceFile'] = sourceFile;
         }
@@ -957,9 +1100,19 @@ extension _AuthoringPromptContexts on TavernEngine {
         chat,
         currentMetadata,
         selectedPreset: presetRaw,
+        selectedPresetId: selectedPresetId,
+        presetWorking: presetWorking,
         managedRegex: managedRegex,
       );
     }
+
+    turn.gameplayInitializing = parent == null && chat.currentLeafId == null;
+    turn.gameplayValueEligible = _gameplayValueIssues(
+      turn.gameplay,
+      turn.currentState,
+      initializing: turn.gameplayInitializing,
+      previousConfig: turn.gameplayPreviousConfig,
+    ).isEmpty;
 
     // The binding wrapper reads current settings before its disabled gate;
     // final injections read them only when this turn enabled secrets.
@@ -980,7 +1133,14 @@ extension _AuthoringPromptContexts on TavernEngine {
           directorOnPath = run;
           directorSource = readDirectorSource(run.sourceNodeId);
           capturedDirectorSource = directorSource;
-          if (_directorSourceReason(run, hostData, _directorPersona(persona, settings), directorSource) == null) {
+          if (_directorSourceReason(
+                run,
+                hostData,
+                _directorPersona(persona, settings),
+                directorSource,
+                effectiveConfigId: turn.gameplay?.effectiveConfigId,
+              ) ==
+              null) {
             final current = readCurrentSettings();
             final authorizationState = parent == null && group == null
                 ? _emptyChatState(
@@ -995,6 +1155,7 @@ extension _AuthoringPromptContexts on TavernEngine {
               current,
               authorizationSource,
               proofs,
+              gameplay: turn.gameplay,
             ).policy;
             final prior = director.result['secretPolicy'];
             final reason = policy == null && prior == null
@@ -1003,12 +1164,19 @@ extension _AuthoringPromptContexts on TavernEngine {
                 ? 'director_secret_knowledge_changed'
                 : _secretKnowledgeReason(policy, prior);
             if (reason == null) {
-              final definition = _storyDefinition(hostData);
+              final definition = turn.gameplay?.story ?? _storyDefinition(hostData);
               if (definition.defined && definition.executable) {
                 storyState = parent == null ? <String, Object?>{} : readState(parent);
               }
               directorEligible =
-                  _storyDirectorEligibilityFromState(director, hostData, storyState, definition: definition) == null;
+                  _storyDirectorEligibilityFromState(
+                    director,
+                    hostData,
+                    storyState,
+                    definition: definition,
+                    gameplay: turn.gameplay,
+                  ) ==
+                  null;
             }
           }
         }
@@ -1042,11 +1210,16 @@ extension _AuthoringPromptContexts on TavernEngine {
       if (_secretProposalPersisted(secret, persistedProposal) &&
           _secretPersonaReason(turn, secretFacts.persona) == null) {
         bindingSource = readDirectorSource(parent);
-        if (_directorSourceFingerprint(bindingSource, _directorCard(hostData), secretFacts.persona) ==
+        if (_directorSourceFingerprint(
+              bindingSource,
+              _directorCard(hostData),
+              secretFacts.persona,
+              effectiveConfigId: turn.gameplay?.effectiveConfigId,
+            ) ==
             secret.result['sourceFingerprint']) {
           bindingState = readState(parent);
           final input = _StateInput(bindingState);
-          final protection = _SecretProtection(hostData, bindingState);
+          final protection = _SecretProtection(hostData, bindingState, gameplay: turn.gameplay);
           if (input.writable && input.valueExists && !protection.unknown && protection.definition.executable) {
             bindingExtra = workspace?.node(parent!).rawExtra ?? _store.rawNodeExtra(chat.id, parent!);
           }
@@ -1056,6 +1229,11 @@ extension _AuthoringPromptContexts on TavernEngine {
     if (kind != _TurnKind.impersonate && _secretsEnabled(settings)) {
       captureLedger(initialState);
     }
+    // All finite ledger dependencies are now captured. Include the same old
+    // definition rows in the isolated seed without rereading global settings.
+    final simulationGameplay = simulationBootstrap
+        ? _store.readGameplaySimulationData(gameplayAdmission.snapshot, configIds: gameplayConfigRows.keys)
+        : null;
     // The added user preserves every old ancestor but ends an empty source.
     // Default state initialization can change current knowledge; defer these
     // possible reads until the recomputed director's actual consumption gate.
@@ -1070,7 +1248,7 @@ extension _AuthoringPromptContexts on TavernEngine {
       }
     }
 
-    final loaded = <WorldInfoBook>[];
+    final linked = <WorldInfoBook>[];
     final missing = <Map<String, Object?>>[];
     final bindings = _map(settings['lorebooks']);
     final activeWorldName = metadata['world_info'];
@@ -1080,7 +1258,13 @@ extension _AuthoringPromptContexts on TavernEngine {
         ..._strings(bindings[source.name]),
         if (source == WorldInfoSource.character)
           for (final id in group == null ? [actorId] : [for (final member in group.members) member.characterId])
-            ..._strings(_map(settings['characterLorebooks'])[id]),
+            ..._characterLinkedBookIds(
+              settings,
+              id,
+              embedded: group == null
+                  ? data.containsKey('character_book')
+                  : (cards[id]?.card.data.containsKey('character_book') ?? false),
+            ),
         if (source == WorldInfoSource.persona && persona.persona != null)
           ..._strings(_map(settings['personaLorebooks'])[persona.persona!.id]),
       ];
@@ -1093,7 +1277,7 @@ extension _AuthoringPromptContexts on TavernEngine {
         }
         final raw = _authoringBook(document);
         final envelope = !document.containsKey('entries') && document['format'] == 'dshgo-lorebook';
-        loaded.add(
+        linked.add(
           WorldInfoBook.fromJson(
             id: id,
             source: source,
@@ -1107,6 +1291,7 @@ extension _AuthoringPromptContexts on TavernEngine {
         );
       }
     }
+    final embeddedBooks = <WorldInfoBook>[];
     final embedded = group == null
         ? <String, Map<String, Object?>>{actorId: data}
         : {
@@ -1115,9 +1300,12 @@ extension _AuthoringPromptContexts on TavernEngine {
           };
     for (final entry in embedded.entries) {
       if (entry.value['character_book'] case final Map<String, Object?> book) {
-        loaded.add(WorldInfoBook.fromJson(id: '${entry.key}:card', source: WorldInfoSource.character, json: book));
+        embeddedBooks.add(
+          WorldInfoBook.fromJson(id: '${entry.key}:card', source: WorldInfoSource.character, json: book),
+        );
       }
     }
+    final loaded = _mergeGameplayBooks(linked, embeddedBooks, turn.gameplayResources);
     checkAdmission();
     var legacy = const _AuthoringCapturedLegacy([]);
     if (real && captureDirectorDependencies) {
@@ -1150,6 +1338,17 @@ extension _AuthoringPromptContexts on TavernEngine {
         if (simulationPresets != null &&
             !_stateJsonEqual(simulationPresets, _store.readAuthoringSimulationPresetRows(simulationPresets.keys))) {
           _authoringContextConflict();
+        }
+        if (simulationGameplay != null) {
+          final currentCastRows = _store.readGameplayCastImportRows([
+            for (final scope in simulationGameplay.scopes)
+              for (final binding in scope.bindings) ...binding.castImports.values,
+          ]);
+          for (final entry in simulationGameplay.castImports.entries) {
+            if (!_stateJsonEqual(entry.value, currentCastRows[entry.key])) {
+              _authoringContextConflict();
+            }
+          }
         }
         if (real) {
           if (_authoringAuditText(_directors.latestSuccess(chat.id)) != _authoringAuditText(director)) {
@@ -1211,9 +1410,11 @@ extension _AuthoringPromptContexts on TavernEngine {
               personas: simulationPersonas!,
               presetRows: simulationPresets!,
               defaultPresetId: defaultPresetId,
+              presetWorking: presetWorking,
               chat: chat,
               history: history,
               state: initialState,
+              gameplay: simulationGameplay!,
             )
           : null,
       scripts: scripts,
@@ -1235,6 +1436,14 @@ extension _AuthoringPromptContexts on TavernEngine {
         'kind': real ? 'chat' : 'sample',
         'chatId': real ? chat.id : null,
         'contextNodeId': parent,
+        'gameplay': {
+          'domainId': gameplayAdmission.snapshot.domainId,
+          'admissionIdentity': gameplayAdmission.identity,
+          'effectiveConfigId': turn.gameplay?.effectiveConfigId,
+          'historicalReferenced': historicalGameplay.referenced,
+          'historicalConfigId': historicalGameplay.config?.effectiveConfigId,
+          'historicalIssues': historicalGameplay.issues,
+        },
         if (simulationBootstrap) 'semantics': 'captured-file-fresh-open',
         if (simulationBootstrap)
           'regexLoadedRuntimeHash': _directorHash([
@@ -1251,6 +1460,11 @@ extension _AuthoringPromptContexts on TavernEngine {
         'deepseek': config.deepseek,
         'thinking': config.thinking,
         'presetId': selectedPresetId,
+        'presetWorking': {
+          'token': presetWorking.token,
+          'global': presetWorking.global != null,
+          'chat': presetWorking.chat != null,
+        },
         'resources': [
           for (final resource in resources.values)
             {
@@ -1284,36 +1498,35 @@ extension _AuthoringPromptContexts on TavernEngine {
 
 Map<String, Object?> _authoringContextSettings(
   Map<String, Object?> global,
-  StoredChat chat,
+  StoredChat? chat,
   Map<String, Object?> metadata, {
   required Map<String, Object?>? selectedPreset,
   required List<Map<String, Object?>> managedRegex,
+  String? selectedPresetId,
+  _PresetWorkingCapture? presetWorking,
 }) {
-  var result = _merge(
-    global,
-    _chatMetadataSettings(metadata, _map(chat.settings['stLorebookIds']), _map(global['authorNote'])),
-  );
-  result = _merge(result, chat.settings);
+  var result = chat == null
+      ? _copy(global)
+      : _merge(
+          global,
+          _chatMetadataSettings(metadata, _map(chat.settings['stLorebookIds']), _map(global['authorNote'])),
+        );
+  if (chat != null) {
+    result = _merge(result, chat.settings);
+  }
   if (selectedPreset != null) {
     result['preset'] = _copy(selectedPreset);
-  } else if (chat.settings.containsKey('preset')) {
+  } else if (chat != null && chat.settings.containsKey('preset')) {
     result['preset'] = _map(chat.settings['preset']);
   }
-  final overrides = _map(result['presetOverrides']);
-  final sampling = <String, Object?>{
-    for (final key in const [
-      'temperature',
-      'top_p',
-      'presence_penalty',
-      'frequency_penalty',
-      'openai_max_tokens',
-      'openai_max_context',
-    ])
-      if (overrides.containsKey(key)) key: overrides[key],
-  };
-  if (sampling.isNotEmpty) {
-    result['preset'] = {..._map(result['preset']), ...sampling};
-  }
+  result = _applyPresetWorkingSettings(
+    result,
+    global: global,
+    chat: chat,
+    selectedSource: _capturedPresetSource(global, chat, selectedPresetId),
+    selectedPresetId: selectedPresetId,
+    working: presetWorking,
+  );
   result.remove('managedRegexScripts');
   if (managedRegex.isNotEmpty) {
     result['managedRegexScripts'] = managedRegex;
@@ -1387,6 +1600,7 @@ StoredCharacter _authoringRuntimeCharacter(
       json: parsed.json,
       assets: {for (final path in resource.mediaRefs) path: resource.media['resources/$path']!},
       png: resource.media['source.png'] ?? (format == TavernCardFormat.png ? resource.media['original.png'] : null),
+      avatar: current?.card.avatar,
       originalBytes: resource.media['original.${format.name}'],
       sourceFormat: format,
     ),

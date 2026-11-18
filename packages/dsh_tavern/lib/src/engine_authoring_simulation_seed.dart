@@ -12,9 +12,11 @@ final class _AuthoringSimulationSeed {
     required this.personas,
     required this.presetRows,
     required this.defaultPresetId,
+    required this.presetWorking,
     required this.chat,
     required this.history,
     required this.state,
+    required this.gameplay,
   });
 
   final Map<String, _AuthoringCapturedResource> resources;
@@ -22,8 +24,10 @@ final class _AuthoringSimulationSeed {
   final Map<String, Object?> settingsDocument, global, personas, state;
   final Map<String, Map<String, Object?>?> presetRows;
   final String? defaultPresetId;
+  final _PresetWorkingCapture presetWorking;
   final StoredChat chat;
   final List<StoredNode> history;
+  final StoredGameplaySimulationData gameplay;
 }
 
 String? _authoringSimulationText(_AuthoringSimulationSeed seed, _AuthoringCapturedResource resource) {
@@ -139,13 +143,17 @@ String _bootstrapAuthoringSimulationStore(TavernEngine engine, _AuthoringSimulat
       presets.add(row);
     }
   }
-  final chatId = engine._store.bootstrapAuthoringSimulation(
-    chat: seed.chat,
-    history: seed.history,
-    state: seed.state,
-    presets: presets,
-    defaultPresetId: seed.defaultPresetId,
-  );
+  final chatId = engine._store.transaction(() {
+    final id = engine._store.bootstrapAuthoringSimulation(
+      chat: seed.chat,
+      history: seed.history,
+      state: seed.state,
+      presets: presets,
+      defaultPresetId: seed.defaultPresetId,
+    );
+    engine._store.bootstrapGameplaySimulationData(seed.gameplay);
+    return id;
+  });
   // File JSON and native runtime values are deliberately distinct. This new
   // base has no live pending writes and uses only the temporary file owner.
   engine._globalVariables.commit(seed.global, engine._globalVariables.revision);
@@ -153,5 +161,6 @@ String _bootstrapAuthoringSimulationStore(TavernEngine engine, _AuthoringSimulat
     leaf: seed.history.lastOrNull?.message.nodeId,
     values: _runtimeCopy(seed.chat.variables),
   );
+  engine._restoreCapturedPresetWorking(seed.presetWorking, chatId);
   return chatId;
 }

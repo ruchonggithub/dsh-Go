@@ -17,6 +17,11 @@ import 'authoring_seed.dart';
 import 'authoring_simulation.dart';
 import 'backup.dart';
 import 'director.dart';
+import 'gameplay.dart';
+import 'gameplay_bindings.dart';
+import 'gameplay_cast.dart';
+import 'gameplay_export.dart';
+import 'gameplay_packs.dart';
 import 'import_report.dart';
 import 'inspection.dart';
 import 'lorebook_library.dart';
@@ -434,6 +439,37 @@ final class TavernChatImportResult {
   final List<String> notices;
 }
 
+/// One conversation in a DeepSeek export, as a list of them shows it.
+final class TavernDeepSeekSession {
+  const TavernDeepSeekSession({
+    required this.id,
+    required this.title,
+    required this.messageCount,
+    this.updatedAt,
+    this.imported,
+  });
+
+  /// Its id in the export.
+  final String id;
+
+  /// As DeepSeek titled it; empty when it had none.
+  final String title;
+  final int messageCount;
+  final DateTime? updatedAt;
+
+  /// Where it lives when it was taken in before.
+  final TavernDeepSeekImported? imported;
+}
+
+/// A DeepSeek conversation taken in: the character made for it and its chat.
+final class TavernDeepSeekImported {
+  const TavernDeepSeekImported({required this.sessionId, required this.characterId, required this.chatId});
+
+  final String sessionId;
+  final String characterId;
+  final String chatId;
+}
+
 /// Where the model calls go. The key is read through [apiKey] each call, so
 /// the app keeps it in secure storage and the engine never stores it.
 class TavernModelConfig {
@@ -599,6 +635,78 @@ abstract interface class Tavern {
   /// requests. Repeating requestId is a new invocation and can spend again.
   /// Cancellation waits for real requests, key suppliers, close and cleanup.
   TavernAuthoringSimulationTask simulateAuthoringDraft(TavernAuthoringSimulationRequest request);
+
+  // Gameplay pack catalog ----------------------------------------------------
+
+  /// Saves immutable dshpack v1 bytes and original import diagnostics.
+  /// This does not bind or execute the pack. castCard files are full CCv3 JSON.
+  /// A post-COMMIT publication failure carries the adopted import result.
+  Future<TavernPackImportResult> importGameplayPack(Uint8List bytes);
+
+  /// Lists installed versions; tombstones are omitted unless requested.
+  Future<List<TavernPackVersion>> listGameplayPacks({bool includeRemoved = false});
+
+  /// Returns saved data, including tombstones, or null for a missing version.
+  Future<TavernPackVersion?> readGameplayPack(TavernPackVersionRef ref);
+
+  /// Returns exact resource bytes or null for a missing version/local identity.
+  Future<TavernPackResource?> readGameplayPackResource(TavernPackVersionRef ref, String localId);
+
+  /// Returns the originally saved ZIP, also for a removed version.
+  Future<Uint8List> exportInstalledGameplayPack(TavernPackVersionRef ref);
+
+  /// Marks availability removed without deleting payload. Preserve expected's
+  /// domain and the complete operation parameters when retrying.
+  Future<TavernPackRemovalReceipt> removeGameplayPackVersion(
+    TavernPackVersionRef ref, {
+    required TavernGameplayRevision expected,
+    required String operationId,
+  });
+
+  /// Reads a complete persisted scope, including disabled and removed slots.
+  Future<TavernPackScopeSnapshot> readGameplayBindings(TavernPackScopeTarget scope);
+
+  /// Applies one operation atomically to one scope. Retry with the original
+  /// domain token, operation id, and complete parameters to replay its receipt.
+  Future<TavernPackBindingReceipt> updateGameplayBindings(
+    TavernPackScopeTarget scope, {
+    required TavernGameplayRevision expected,
+    required String operationId,
+    required List<TavernPackBindingEdit> edits,
+  });
+
+  /// Resolves current bindings with explicit candidate scopes substituted.
+  /// This neither saves bindings nor initializes an absent state value.
+  Future<TavernGameplayResolution> resolveGameplayConfig(
+    TavernGameplayContext context, {
+    List<TavernPackScopePreview> proposedScopes = const [],
+    bool validateCurrentState = false,
+  });
+
+  /// Imports one explicit cast source through the existing prepared writer.
+  /// Retain the complete source/domain/operation intent for a replay.
+  Future<TavernCastImportResult> importDshgoCastMember(
+    TavernCastSource source,
+    String localCastId, {
+    required String operationId,
+    String? domainId,
+  });
+
+  /// Reads the original stored outcome without publishing or importing again.
+  Future<TavernCastImportResult?> readDshgoCastImport(String domainId, String operationId);
+
+  /// Captures a complete prospective export without saving any source or pack.
+  Future<TavernGameplayExportPreview> previewGameplayExport(TavernGameplayExportRequest request);
+
+  /// Recaptures and compares the full preview before encoding a new card.
+  Future<Uint8List> exportCharacterWithPacks(TavernGameplayExportRequest request, {required String expectedPreviewId});
+
+  /// Exports selected materialized draft candidates into a new pack's bytes.
+  /// This does not install, bind, publish or overwrite an installed version.
+  Future<Uint8List> exportGameplayPackFromDraft(
+    TavernGameplayExportRequest request, {
+    required String expectedPreviewId,
+  });
 
   // Library ------------------------------------------------------------------
 
@@ -797,6 +905,16 @@ abstract interface class Tavern {
   /// document has a fresh integrity UUID. Reading during a turn does not stop
   /// generation; only the state already committed to storage is included.
   Future<List<TavernChatFile>> exportChat(String chatId, {String? fileName});
+
+  /// The conversations in DeepSeek's「导出所有历史对话」ZIP at [zipPath], the
+  /// longest first. Throws [TavernImportError] when the file is not one.
+  Future<List<TavernDeepSeekSession>> inspectDeepSeekExport(String zipPath);
+
+  /// Takes the named conversations in: each becomes a character of its own
+  /// with one chat holding every branch, the one last on screen selected, so
+  /// the next message continues it. No greeting is added and no model is
+  /// called. One taken in before is returned as it is, not copied again.
+  Future<List<TavernDeepSeekImported>> importDeepSeekSessions(String zipPath, List<String> sessionIds);
 
   Future<void> deleteChat(String chatId);
 

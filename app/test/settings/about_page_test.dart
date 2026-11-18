@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../support/test_fonts.dart';
 
@@ -41,6 +42,7 @@ void main() {
   late Future<bool> Function(Uri) opener;
 
   setUp(() {
+    SharedPreferences.setMockInitialValues({});
     opened = [];
     store = _StarStore();
     opener = (uri) async {
@@ -106,7 +108,7 @@ void main() {
         expect(find.text('@cccch1mneyyyy'), findsOneWidget);
         expect(find.text('@ccch1mneyyy'), findsOneWidget);
         expect(find.text('1.0.2 (42)'), findsOneWidget);
-        expect(find.byKey(const ValueKey('settings-star')), findsOneWidget);
+        expect(find.byKey(const ValueKey('settings-star')), findsNothing);
         expect(find.text(english ? 'Bilibili profile' : 'B站主页'), findsOneWidget);
         expect(find.text(english ? 'X profile' : 'X 主页'), findsOneWidget);
         expect(find.text(english ? 'GitHub profile' : 'GitHub 主页'), findsOneWidget);
@@ -139,7 +141,8 @@ void main() {
     expect(store.writes, isEmpty);
   });
 
-  testWidgets('the separate project star still opens the repository', (tester) async {
+  testWidgets('the separate project star opens the repository when productivity mode is off', (tester) async {
+    SharedPreferences.setMockInitialValues({'productivity.enabled': false});
     await pump(tester);
     await tap(tester, 'settings-star');
     expect(opened.map((uri) => uri.toString()), ['https://github.com/ccch1mneyyy/dsh-go']);
