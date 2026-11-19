@@ -31,6 +31,8 @@ class _StarStore implements StarPromptStore {
 }
 
 const _profiles = [
+  ('about-fork-author', 'https://github.com/ruchonggithub'),
+  ('about-upstream-project', 'https://github.com/ccch1mneyyy/dsh-go'),
   ('about-author-bilibili', 'https://b23.tv/9WBns6Y'),
   ('about-author-x', 'https://x.com/cccch1mneyyyy'),
   ('about-author-github', 'https://github.com/ccch1mneyyy'),
@@ -99,10 +101,13 @@ void main() {
 
   for (final locale in AppLocale.supported) {
     for (final brightness in Brightness.values) {
-      testWidgets('author profiles fit 360dp at 1.3x in $locale $brightness', (tester) async {
+      testWidgets('author and acknowledgements fit 360dp at 1.3x in $locale $brightness', (tester) async {
         await pump(tester, locale: locale, brightness: brightness, scale: 1.3);
         final english = locale == AppLocale.en;
-        expect(find.text(english ? 'Original author of DSH Go' : 'DSH Go 原作者'), findsOneWidget);
+        expect(find.text(english ? 'Author of this version' : '本版本作者'), findsOneWidget);
+        expect(find.text('@ruchonggithub'), findsOneWidget);
+        expect(find.text(english ? 'Acknowledgements' : '鸣谢'), findsOneWidget);
+        expect(find.textContaining(english ? 'Thanks for creating DSH Go' : '感谢原作者创建 DSH Go'), findsOneWidget);
         expect(find.text('ccch1mneyyy'), findsOneWidget);
         expect(find.text('ccchimneyyy'), findsOneWidget);
         expect(find.text('@cccch1mneyyyy'), findsOneWidget);

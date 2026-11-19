@@ -13,8 +13,14 @@
   DeepSeek Harness 的手机应用：Android 版已发布；iOS 版仍在开发和真机测试，需在 Mac 上自行签名编译（<a href="app/ios/README.md">iOS 工程</a> · <a href="docs/architecture.md">架构</a>）。
 </p>
 
+## 宗旨：以生产力为核心
+
+这是由 [@ruchonggithub](https://github.com/ruchonggithub) 独立维护的 [DSH Go](https://github.com/ccch1mneyyy/dsh-go) fork。我们优先打磨在手机和平板上继续工作所需的功能：稳定连接远程主机、切换中继服务器和账号、接续对话和处理任务。默认从远程主机开始；需要时也可以在设置中启用本机 DSH。宠物和其他娱乐功能是可选项。
+
+感谢 [@ccch1mneyyy](https://github.com/ccch1mneyyy) 创建并开源 DSH Go。
+
 <p align="center">
-  <a href="https://github.com/ccch1mneyyy/dsh-go/releases/latest"><img alt="Android 8+" src="https://img.shields.io/badge/Android-8%2B-4B67B4?style=flat-square&logo=android&logoColor=white&labelColor=2B3245"></a>
+  <a href="https://github.com/ruchonggithub/dsh-Go/releases/latest"><img alt="Android 8+" src="https://img.shields.io/badge/Android-8%2B-4B67B4?style=flat-square&logo=android&logoColor=white&labelColor=2B3245"></a>
   <a href="LICENSE"><img alt="许可证 AGPL-3.0" src="https://img.shields.io/badge/%E8%AE%B8%E5%8F%AF%E8%AF%81-AGPL--3.0-4B67B4?style=flat-square&labelColor=2B3245"></a>
   <a href="https://forum.dshtui.com"><img alt="论坛" src="https://img.shields.io/badge/%E8%AE%BA%E5%9D%9B-forum.dshtui.com-4B67B4?style=flat-square&labelColor=2B3245"></a>
   <a href="https://qm.qq.com/q/OEy2RqZnqY"><img alt="QQ 群 1132118290" src="https://img.shields.io/badge/QQ%20%E7%BE%A4-1132118290-4B67B4?style=flat-square&logo=tencentqq&logoColor=white&labelColor=2B3245"></a>
@@ -27,7 +33,7 @@
 
 <br>
 
-<h3 align="center">Deepy 和鲸娘，陪你干活</h3>
+<h3 align="center">可选陪伴：Deepy 和鲸娘</h3>
 
 <p align="center">干活时敲代码，做完来个空翻，等你确认会举手。打开「App 外显示」，它们还会跟你到桌面。</p>
 
@@ -44,14 +50,14 @@
 <a id="download"></a>
 <h3 align="center">下载 DSH Go</h3>
 
-<p align="center">从 GitHub Releases 或官网下载页获取最新版 APK，常见手机选 arm64 包。</p>
+<p align="center">从本 fork 的 GitHub Releases 获取 Android ARM64 安装包；应用内更新也使用这里。</p>
 
 <p align="center">
-  <a href="https://github.com/ccch1mneyyy/dsh-go/releases/latest"><img alt="从 GitHub Releases 下载" src="https://img.shields.io/badge/GitHub%20Releases-%E4%B8%8B%E8%BD%BD%20APK-4B67B4?style=for-the-badge&logo=github&logoColor=white&labelColor=2B3245"></a>&emsp;<a href="https://go.dshtui.com/download"><img alt="从官网下载页下载" src="https://img.shields.io/badge/go.dshtui.com-%E5%AE%98%E7%BD%91%E4%B8%8B%E8%BD%BD-4B67B4?style=for-the-badge&labelColor=2B3245"></a>
+  <a href="https://github.com/ruchonggithub/dsh-Go/releases/latest"><img alt="从 GitHub Releases 下载" src="https://img.shields.io/badge/GitHub%20Releases-%E4%B8%8B%E8%BD%BD%20APK-4B67B4?style=for-the-badge&logo=github&logoColor=white&labelColor=2B3245"></a>
 </p>
 
 <p align="center">
-  <b>感谢大家对 DSH Go 的支持和喜爱！当前下载页提供 Android APK；iOS 版还在开发和真机测试，没有公开安装包，鸿蒙版也在继续推进。</b>
+  <b>本 fork 的公开发布仅提供 Android ARM64 APK。</b>
 </p>
 
 <p align="center">
@@ -60,7 +66,7 @@
 
 <p align="center">
   <sub>第一次用可以先看<a href="docs/guide/README.md">使用指南</a>，遇到问题欢迎来<a href="#community">论坛和 QQ 群</a>。</sub><br>
-  <sub>手机上装过签名不同的早期测试包时不能直接覆盖安装，需要先卸载旧版；卸载会清空对话、Linux 环境和设置。</sub>
+  <sub>上游原版或本 fork 的早期调试包签名不同，不能直接覆盖安装。请先备份所需数据；卸载会清空对话、Linux 环境和设置。</sub>
 </p>
 
 <br>
@@ -184,10 +190,10 @@ DSH Go 提供聊天界面、本机运行环境和远程连接，是基于 [DeepS
 
 ## 安装
 
-安装要求为 Android 8.0（API 26）及以上。Release 页面上的 **arm64** 安装包适用于常见的 64 位 Android 手机；x86_64 设备和模拟器用的 x64 包在发布说明末尾的「其他版本下载」里。仓库没有 32 位 ARM 构建。
+安装要求为 Android 8.0（API 26）及以上，且设备支持 **ARM64**。本 fork 不发布 x86_64 或 32 位 ARM 安装包。
 
-1. 从 [GitHub Releases](https://github.com/ccch1mneyyy/dsh-go/releases/latest) 或[官网下载页](https://go.dshtui.com/download)下载对应架构的 APK，并按系统提示允许该安装来源。
-2. 首次启动时，选择在本机安装运行环境，或连接远程主机。
+1. 从本 fork 的 [GitHub Releases](https://github.com/ruchonggithub/dsh-Go/releases/latest) 下载 ARM64 APK，并按系统提示允许该安装来源。
+2. 首次启动时连接远程主机；如需在手机上运行引擎，在「设置 → 主机」中开启「本机 DSH」。
 3. 为所选主机配置模型和所需凭据，再开始对话；部分远程渠道需要在主机侧配置。
 
 仅连接远程主机时，不必在手机上安装本机运行环境。手机操控只对正常模式下的本机引擎开放，需要按界面说明开启无障碍等权限；不打扰模式另外要求 Android 14 及以上，以及 Shizuku 或自连 ADB。首次使用可按[使用指南](docs/guide/README.md)逐项配置。
@@ -259,7 +265,7 @@ Android 8 及以上。手机直接下载 Release 页面上的安装包即可，�
 先取得完整源码和项目资源。`app/pubspec.yaml` 声明的字体、图片等都是构建输入，运行时包由下面的脚本生成。
 
 ```bash
-git clone https://github.com/ccch1mneyyy/dsh-go.git
+git clone --branch feature/multi-relay-servers https://github.com/ruchonggithub/dsh-Go.git dsh-go
 cd dsh-go
 
 bash tooling/setup-toolchain.sh

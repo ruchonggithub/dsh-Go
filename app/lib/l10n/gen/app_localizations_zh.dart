@@ -9260,10 +9260,16 @@ class L10nZh extends L10n {
   String get hubAboutForkRepository => '本版本的 GitHub 仓库';
 
   @override
-  String get hubAboutForkDescription => '基于 DSH Go 的独立维护版。支持多个中继服务器和账号，默认仅连接远程主机；可在设置中开启本机 DSH。';
+  String get hubAboutForkDescription => '以生产力为核心的 DSH Go 独立维护版。支持多个中继服务器和账号，默认仅连接远程主机；可在设置中开启本机 DSH。';
 
   @override
-  String get hubAboutAuthor => 'DSH Go 原作者';
+  String get hubAboutForkAuthor => '本版本作者';
+
+  @override
+  String get hubAboutAcknowledgements => '鸣谢';
+
+  @override
+  String get hubAboutUpstreamThanks => '感谢原作者创建 DSH Go · 查看上游仓库';
 
   @override
   String get hubAboutBilibili => 'B站主页';

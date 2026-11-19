@@ -17135,14 +17135,26 @@ abstract class L10n {
   /// No description provided for @hubAboutForkDescription.
   ///
   /// In zh, this message translates to:
-  /// **'基于 DSH Go 的独立维护版。支持多个中继服务器和账号，默认仅连接远程主机；可在设置中开启本机 DSH。'**
+  /// **'以生产力为核心的 DSH Go 独立维护版。支持多个中继服务器和账号，默认仅连接远程主机；可在设置中开启本机 DSH。'**
   String get hubAboutForkDescription;
 
-  /// No description provided for @hubAboutAuthor.
+  /// No description provided for @hubAboutForkAuthor.
   ///
   /// In zh, this message translates to:
-  /// **'DSH Go 原作者'**
-  String get hubAboutAuthor;
+  /// **'本版本作者'**
+  String get hubAboutForkAuthor;
+
+  /// No description provided for @hubAboutAcknowledgements.
+  ///
+  /// In zh, this message translates to:
+  /// **'鸣谢'**
+  String get hubAboutAcknowledgements;
+
+  /// No description provided for @hubAboutUpstreamThanks.
+  ///
+  /// In zh, this message translates to:
+  /// **'感谢原作者创建 DSH Go · 查看上游仓库'**
+  String get hubAboutUpstreamThanks;
 
   /// No description provided for @hubAboutBilibili.
   ///

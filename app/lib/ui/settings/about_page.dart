@@ -1,5 +1,5 @@
-// About DSH Go: this fork's information, the original author and personal
-// profiles, and the unofficial-app disclaimer.
+// About DSH Go: this fork's information and author, upstream acknowledgements,
+// and the unofficial-app disclaimer.
 
 import 'dart:async';
 
@@ -54,6 +54,14 @@ class AboutPage extends ConsumerWidget {
               AppInfo.repositoryUrl,
               spot: Spots.forkRepository,
             ),
+            _externalLink(
+              context,
+              ref,
+              'about-fork-author',
+              '@${AppInfo.forkAuthor}',
+              AppInfo.forkAuthorGithubUrl,
+              spot: Spots.forkAuthor,
+            ),
             // 生产力模式 on: the star prompt is part of the play half.
             if (ref.watch(entertainmentEnabledProvider))
               SettingsTile(
@@ -79,9 +87,16 @@ class AboutPage extends ConsumerWidget {
           ],
         ),
         SettingsSection(
-          title: l10n.hubAboutAuthor,
+          title: l10n.hubAboutAcknowledgements,
           children: [
-            const SettingsTile(title: AppInfo.author),
+            _externalLink(
+              context,
+              ref,
+              'about-upstream-project',
+              l10n.hubAboutUpstreamThanks,
+              AppInfo.upstreamRepositoryUrl,
+              title: AppInfo.author,
+            ),
             _externalLink(
               context,
               ref,

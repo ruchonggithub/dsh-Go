@@ -1244,6 +1244,7 @@ abstract final class Spots {
     page: SettingsPageId.about,
     title: (l) => l.hubAboutForkRepository,
   );
+  static final forkAuthor = SettingSpot('fork-author', page: SettingsPageId.about, title: (l) => l.hubAboutForkAuthor);
   static final star = SettingSpot(
     'star',
     page: SettingsPageId.about,
@@ -1335,6 +1336,7 @@ final _rows = <SettingSpot>[
   Spots.updateCheck,
   Spots.updateAuto,
   Spots.forkRepository,
+  Spots.forkAuthor,
   Spots.star,
   Spots.licenses,
 ];
