@@ -127,10 +127,19 @@ void main() {
         await tester.ensureVisible(disclaimer);
         await tester.pumpAndSettle();
         expect(disclaimer.hitTestable(), findsOneWidget);
+        expect(find.textContaining(english ? 'independently maintained fork' : '独立维护版'), findsOneWidget);
         expect(tester.takeException(), isNull);
       });
     }
   }
+
+  testWidgets('the repository link opens the fork even in productivity mode', (tester) async {
+    await pump(tester);
+    expect(find.text('ruchonggithub/dsh-Go'), findsOneWidget);
+    await tap(tester, 'about-project-repository');
+    expect(opened.map((uri) => uri.toString()), ['https://github.com/ruchonggithub/dsh-Go']);
+    expect(store.writes, isEmpty);
+  });
 
   testWidgets('each profile opens its exact personal URL without finishing the star prompt', (tester) async {
     await pump(tester);

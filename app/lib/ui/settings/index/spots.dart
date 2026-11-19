@@ -1239,6 +1239,11 @@ abstract final class Spots {
     title: (l) => l.updateAutoCheck,
     keywords: (l) => l.searchKwUpdateAuto,
   );
+  static final forkRepository = SettingSpot(
+    'fork-repository',
+    page: SettingsPageId.about,
+    title: (l) => l.hubAboutForkRepository,
+  );
   static final star = SettingSpot(
     'star',
     page: SettingsPageId.about,
@@ -1329,6 +1334,7 @@ final _rows = <SettingSpot>[
   Spots.version,
   Spots.updateCheck,
   Spots.updateAuto,
+  Spots.forkRepository,
   Spots.star,
   Spots.licenses,
 ];

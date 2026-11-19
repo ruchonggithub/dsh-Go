@@ -312,14 +312,17 @@ class _ReadyApk {
 
 class AppUpdateController extends Notifier<AppUpdateState> {
   static const _autoKey = 'update_auto_check';
-  static const _skippedKey = 'update_skipped_version';
-  static const _checkedKey = 'update_last_checked';
-  static const _attemptKey = 'update_last_attempt';
-  static const _endpointKey = 'update_endpoint';
-  static const _mirrorKey = 'update_mirror';
-  static const _latestKey = 'update_latest';
+
+  // A previous build's offer and check timestamps belong to its release source.
+  static const _repoPrefs = 'update:$updateRepo';
+  static const _skippedKey = '$_repoPrefs:skipped_version';
+  static const _checkedKey = '$_repoPrefs:last_checked';
+  static const _attemptKey = '$_repoPrefs:last_attempt';
+  static const _endpointKey = '$_repoPrefs:endpoint';
+  static const _mirrorKey = '$_repoPrefs:mirror';
+  static const _latestKey = '$_repoPrefs:latest';
   static const _installedKey = 'update_installed_sha256';
-  static const _patchFailedKey = 'update_patch_failed';
+  static const _patchFailedKey = '$_repoPrefs:patch_failed';
 
   /// Free space wanted on top of twice the APK (download + install staging).
   static const _spareBytes = 64 * 1024 * 1024;

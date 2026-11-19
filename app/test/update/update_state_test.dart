@@ -17,9 +17,9 @@ import 'support.dart';
 
 const _m1 = UpdateMirror(id: 'm1', label: 'mirror-one.example', prefix: 'https://mirror-one.example/');
 const _sources = UpdateSources(mirrors: [UpdateMirror.github, _m1]);
-const _api = 'https://api.github.com/repos/ccch1mneyyy/dsh-go/releases/latest';
-const _manifest = 'https://github.com/ccch1mneyyy/dsh-go/releases/latest/download/update.json';
-const _apkUrl = 'https://github.com/ccch1mneyyy/dsh-go/releases/download/v1.2.0/dsh-go-1.2.0-arm64.apk';
+const _api = 'https://api.github.com/repos/ruchonggithub/dsh-Go/releases/latest';
+const _manifest = 'https://github.com/ruchonggithub/dsh-Go/releases/latest/download/update.json';
+const _apkUrl = 'https://github.com/ruchonggithub/dsh-Go/releases/download/v1.2.0/dsh-go-1.2.0-arm64.apk';
 
 final _apk = utf8.encode('PK pretend this is DSH 1.2.0 for arm64');
 
@@ -95,12 +95,12 @@ void main() {
     });
     tearDown(() => dir.deleteSync(recursive: true));
 
-    ProviderContainer container() {
+    ProviderContainer container({UpdateSources? sources = _sources}) {
       final c = ProviderContainer(
         overrides: [
           updateHttpProvider.overrideWithValue(http),
           updateInstallerProvider.overrideWithValue(installer),
-          updateSourcesProvider.overrideWithValue(_sources),
+          if (sources != null) updateSourcesProvider.overrideWithValue(sources),
           updateClockProvider.overrideWithValue(() => now),
           updateFlavorNameProvider.overrideWithValue(flavor),
           updateDirectoryProvider.overrideWithValue(() async => dir),
@@ -126,6 +126,25 @@ void main() {
       expect(state.current.toString(), '1.1.0+5');
       expect(state.flavor, ApkFlavor.x64);
       expect(state.autoCheck, isTrue);
+    });
+
+    test('upgrading to the fork checks its releases, not a cached upstream offer', () async {
+      final oldOffer = _release(version: '99.0.0')
+        ..['page'] = 'https://github.com/ccch1mneyyy/dsh-go/releases/tag/v99.0.0';
+      SharedPreferences.setMockInitialValues({
+        'update_latest': jsonEncode(oldOffer),
+        'update_last_checked': now.millisecondsSinceEpoch,
+        'update_last_attempt': now.millisecondsSinceEpoch,
+      });
+      http.routes[_manifest] = (_, _) => textResponse('', status: 404);
+      http.routes[_api] = (_, _) => textResponse('', status: 404);
+      final c = container(sources: null);
+      final controller = await ready(c);
+      expect(c.read(appUpdateProvider).hasUpdate, isFalse);
+      expect(await controller.autoCheckIfDue(), isFalse);
+      expect(http.urls, [_manifest, _api]);
+      expect(c.read(appUpdateProvider).check, UpdateCheckPhase.unavailable);
+      expect(c.read(appUpdateProvider).hasUpdate, isFalse);
     });
 
     test('daily auto check: offers once, then waits a day; remembers the endpoint that answered', () async {
@@ -246,9 +265,9 @@ void main() {
 
     test('the last offer survives a restart without the network, and is dropped once installed', () async {
       SharedPreferences.setMockInitialValues({
-        'update_latest': jsonEncode(_release()),
-        'update_last_checked': now.millisecondsSinceEpoch,
-        'update_last_attempt': now.millisecondsSinceEpoch,
+        'update:ruchonggithub/dsh-Go:latest': jsonEncode(_release()),
+        'update:ruchonggithub/dsh-Go:last_checked': now.millisecondsSinceEpoch,
+        'update:ruchonggithub/dsh-Go:last_attempt': now.millisecondsSinceEpoch,
       });
       final c = container();
       await ready(c);
@@ -260,7 +279,7 @@ void main() {
       final after = container();
       await ready(after);
       expect(after.read(appUpdateProvider).hasUpdate, isFalse);
-      expect((await SharedPreferences.getInstance()).getString('update_latest'), isNull);
+      expect((await SharedPreferences.getInstance()).getString('update:ruchonggithub/dsh-Go:latest'), isNull);
     });
 
     test('download → no install permission → settings → back → install', () async {

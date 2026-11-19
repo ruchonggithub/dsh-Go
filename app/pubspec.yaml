@@ -22,7 +22,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # docs/release.md「构建号」). Don't bump it by hand.
 #
 # The fork appends its own incrementing revision (-N) to the upstream version.
-version: 1.2.0-11+1
+version: 1.2.0-12+1
 
 environment:
   sdk: ^3.13.4

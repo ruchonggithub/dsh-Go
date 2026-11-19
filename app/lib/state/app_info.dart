@@ -6,7 +6,7 @@ import '../l10n/l10n.dart';
 /// constant kept in sync with `pubspec.yaml` (checked by tooling tests). Release builds can
 /// override it with `--dart-define=DSH_APP_VERSION=1.2.0+7`.
 abstract final class AppInfo {
-  static const version = String.fromEnvironment('DSH_APP_VERSION', defaultValue: '1.2.0-11+1');
+  static const version = String.fromEnvironment('DSH_APP_VERSION', defaultValue: '1.2.0-12+1');
 
   /// "1.0.0 (1)" for display.
   static String get displayVersion {
@@ -26,8 +26,13 @@ abstract final class AppInfo {
   /// Shown on the About and licence pages.
   static String get disclaimer => appL10n.stateAppDisclaimer;
 
-  /// The line under the brand mark (welcome page, 关于 dsh-go).
+  /// The line under the brand mark on the welcome page.
   static String get slogan => appL10n.appSlogan;
+
+  /// This fork's project page and release repository, separate from upstream.
+  static const repository = 'ruchonggithub/dsh-Go';
+  static const repositoryUrl = 'https://github.com/$repository';
+  static const upstreamRepository = 'ccch1mneyyy/dsh-go';
 
   /// The original DSH Go author and their personal profiles, not project pages.
   static const author = 'ccch1mneyyy';

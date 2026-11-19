@@ -21,9 +21,10 @@
 library;
 
 import '../links/removed_links.dart' show projectUpdateHostsEnabled;
+import '../state/app_info.dart' show AppInfo;
 
 /// GitHub repository the releases live in.
-const updateRepo = 'ccch1mneyyy/dsh-go';
+const updateRepo = AppInfo.repository;
 
 /// `releases/latest` of the REST API: tag, notes, assets with sizes and
 /// SHA-256 digests. Unauthenticated: 60 requests per hour per IP.
@@ -155,12 +156,9 @@ const _betaOriginDefine = String.fromEnvironment('DSH_BETA_CHANNEL_ORIGIN', defa
 
 /// The configuration the app ships with.
 ///
-/// This build is the upstream client with its third-party links removed (see
-/// `app/lib/links/removed_links.dart`). Updates come from GitHub releases only:
-/// the project's own copy at [updateDownloadOrigin], its beta channel and the
-/// public GitHub accelerators are all off. The code that drives them stays, so
-/// a build can turn any of them back on with the defines above — an explicit
-/// define still overrides this default.
+/// This fork checks only its own GitHub releases. The upstream download host,
+/// beta channel and public GitHub accelerators remain disabled by
+/// [projectUpdateHostsEnabled].
 UpdateSources defaultUpdateSources() => buildUpdateSources(
   mirror: projectUpdateHostsEnabled ? (_mirrorDefine == _unset ? updateDownloadOrigin : _mirrorDefine) : '',
   feed: projectUpdateHostsEnabled ? (_feedDefine == _unset ? null : _feedDefine) : '',

@@ -27,10 +27,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'support.dart';
 
 const _sources = UpdateSources(mirrors: [UpdateMirror.github]);
-const _manifest = 'https://github.com/ccch1mneyyy/dsh-go/releases/latest/download/update.json';
+const _manifest = 'https://github.com/ruchonggithub/dsh-Go/releases/latest/download/update.json';
 const _name = 'dsh-go-1.2.0-arm64.apk';
-const _asset = 'https://github.com/ccch1mneyyy/dsh-go/releases/download/v1.2.0/$_name';
-const _sums = 'https://github.com/ccch1mneyyy/dsh-go/releases/download/v1.2.0/SHA256SUMS';
+const _asset = 'https://github.com/ruchonggithub/dsh-Go/releases/download/v1.2.0/$_name';
+const _sums = 'https://github.com/ruchonggithub/dsh-Go/releases/download/v1.2.0/SHA256SUMS';
 
 final _bytesA = utf8.encode('PK synthetic release payload alpha');
 final _bytesB = utf8.encode('PK synthetic release payload bravo');
@@ -77,7 +77,7 @@ class _Rig {
   File get part => File('${dir.path}/$_name.part');
 
   Future<String?> cachedDigest() async {
-    final raw = (await SharedPreferences.getInstance()).getString('update_latest');
+    final raw = (await SharedPreferences.getInstance()).getString('update:ruchonggithub/dsh-Go:latest');
     if (raw == null) return null;
     final assets = (jsonDecode(raw) as Map)['assets'] as Map;
     return (assets['arm64'] as Map)['sha256'] as String?;
@@ -113,7 +113,7 @@ void main() {
     final installer = _ReadingInstaller();
     // A remembered offer: no first-launch cleanup of the update folder runs
     // under the download.
-    SharedPreferences.setMockInitialValues({'update_latest': jsonEncode(_release(offered))});
+    SharedPreferences.setMockInitialValues({'update:ruchonggithub/dsh-Go:latest': jsonEncode(_release(offered))});
     http.routes[_manifest] = (_, _) => _answer(offered);
     http.routes[_asset] = fileRoute(_bytesA);
     http.routes[_sums] = (_, _) => textResponse('$_hashA  $_name\n');

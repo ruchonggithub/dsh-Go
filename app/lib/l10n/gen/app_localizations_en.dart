@@ -9776,6 +9776,13 @@ class L10nEn extends L10n {
   String get hubAbout => 'About DSH Go';
 
   @override
+  String get hubAboutForkRepository => 'This version\'s GitHub repository';
+
+  @override
+  String get hubAboutForkDescription =>
+      'An independently maintained fork of DSH Go. Use multiple relay servers and accounts, connect to remote hosts by default, or enable on-device DSH in Settings.';
+
+  @override
   String get hubAboutAuthor => 'Original author of DSH Go';
 
   @override

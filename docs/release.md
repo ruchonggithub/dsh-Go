@@ -4,6 +4,14 @@ App 以 APK 分发、不上商店，更新靠 App 自己查 GitHub Releases、�
 
 > **正式发版前必须先换成固定的发布密钥**（见「签名」）。存在 `app/android/key.properties` 时 release 使用其中的发布密钥；缺少配置时仅为本地构建回落到 debug key，不可用于正式发布。
 
+## 本 fork 的发版约定
+
+每次正式打包交付，都在 [ruchonggithub/dsh-Go](https://github.com/ruchonggithub/dsh-Go/releases) 发一个 GitHub Release。下文的 R2、下载桶和内测通道是上游流程，本 fork 不部署到那些地址。
+
+- 提升 fork 的版本名，用同一套发布密钥构建 ARM64；确认包名、架构、递增构建号和签名后，再发布。
+- 从本次打包对应的提交创建 `v<版本名>` 标签。用 `tooling/release_assets.py --notes <说明> --delta-from 0` 生成 APK、`update.json` 和 `SHA256SUMS`，三项都上传到 Release。
+- fork 的 `-N` 是正式修订号（例如 `1.2.0-12`），在 GitHub 上发布为正式版、设为 Latest，不标成 Pre-release。发布后核对 `releases/latest` 和 `releases/latest/download/update.json`。仅推送分支不会让 App 收到更新。
+
 ## 资产约定
 
 每个版本一个 GitHub Release，仓库 `ccch1mneyyy/dsh-go`，必须公开（私有仓库匿名访问一律 404，App 只会显示「暂时检查不了」）。同一组文件也放在公开下载桶：`https://dl.dshtui.com/download/<版本>/<文件>`，最新版的清单在 `https://dl.dshtui.com/update.json`（见「公开下载桶 dl」）。

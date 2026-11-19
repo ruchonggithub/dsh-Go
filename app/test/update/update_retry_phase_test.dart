@@ -61,7 +61,7 @@ void main() {
           }
         });
         SharedPreferences.setMockInitialValues({
-          'update_latest': jsonEncode({
+          'update:ruchonggithub/dsh-Go:latest': jsonEncode({
             'schema': 1,
             'version': '1.2.0',
             'tag': 'v1.2.0',

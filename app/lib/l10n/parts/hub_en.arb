@@ -147,6 +147,8 @@
   "hubTableTintFollowHint": "Header tint only, body follows the reply",
   "hubTableTintNoneHint": "Grid lines only, the lightest",
   "hubAbout": "About DSH Go",
+  "hubAboutForkRepository": "This version's GitHub repository",
+  "hubAboutForkDescription": "An independently maintained fork of DSH Go. Use multiple relay servers and accounts, connect to remote hosts by default, or enable on-device DSH in Settings.",
   "hubAboutAuthor": "Original author of DSH Go",
   "hubAboutBilibili": "Bilibili profile",
   "hubAboutX": "X profile",

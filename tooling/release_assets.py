@@ -9,7 +9,7 @@ with `tooling/build-apk.sh` first. Explicit multiple inputs must share a build n
 
 It also makes delta patches (tooling/apk_delta.py, docs/design/delta-update.md)
 from the arm64 APKs of the last --delta-from releases on GitHub (fetched with
-`gh`, kept in ~/.cache/dshgo-release/apk/, checked against their SHA256SUMS),
+`gh`, cached per repository under ~/.cache/dshgo-release/apk/ and checked against SHA256SUMS),
 and keeps those under 60 % of the new APK: in dist/, SHA256SUMS and update.json's
 `patches`.
 
@@ -40,10 +40,10 @@ from build_number import MAX_VERSION_CODE, decode
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 FLAVORS = ("arm64", "x64")
 FLAVOR_ABI = {"arm64": "arm64-v8a", "x64": "x86_64"}
-REPO = "ccch1mneyyy/dsh-go"
+REPO = "ruchonggithub/dsh-Go"
 VERSION_RE = re.compile(r"^(\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)(?:\+(\d+))?$")
 BADGING_RE = re.compile(r"^package: .*?\bversionCode='(\d*)' versionName='([^']*)'", re.MULTILINE)
-CACHE = pathlib.Path.home() / ".cache" / "dshgo-release" / "apk"
+CACHE = pathlib.Path.home() / ".cache" / "dshgo-release" / "apk" / REPO
 # A patch this big saves too little to be worth a second download path.
 PATCH_LIMIT = 0.6
 

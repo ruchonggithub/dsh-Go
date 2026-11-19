@@ -13,7 +13,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'support.dart';
 
 const _name = 'dsh-go-1.2.0-arm64.apk';
-const _url = 'https://github.com/ccch1mneyyy/dsh-go/releases/download/v1.2.0/$_name';
+const _url = 'https://github.com/ruchonggithub/dsh-Go/releases/download/v1.2.0/$_name';
 final _bytes = utf8.encode('fixed host-only update test bytes');
 
 void main() {
@@ -28,7 +28,7 @@ void main() {
     directory = Directory.systemTemp.createTempSync('update-result-');
     installer = FakeInstaller();
     SharedPreferences.setMockInitialValues({
-      'update_latest': jsonEncode({
+      'update:ruchonggithub/dsh-Go:latest': jsonEncode({
         'schema': 1,
         'version': '1.2.0',
         'tag': 'v1.2.0',

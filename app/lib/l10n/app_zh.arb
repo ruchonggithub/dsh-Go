@@ -5622,6 +5622,8 @@
   "hubTableTintFollowHint": "表头浅底，表身跟随正文",
   "hubTableTintNoneHint": "只剩网格线，最轻",
   "hubAbout": "关于 DSH Go",
+  "hubAboutForkRepository": "本版本的 GitHub 仓库",
+  "hubAboutForkDescription": "基于 DSH Go 的独立维护版。支持多个中继服务器和账号，默认仅连接远程主机；可在设置中开启本机 DSH。",
   "hubAboutAuthor": "DSH Go 原作者",
   "hubAboutBilibili": "B站主页",
   "hubAboutX": "X 主页",

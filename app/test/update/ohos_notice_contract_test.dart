@@ -130,7 +130,7 @@ void main() {
   });
 
   test('OH cached offer survives failed refresh and preserves four-hour failure backoff', () async {
-    SharedPreferences.setMockInitialValues({'update_latest': jsonEncode(manifest())});
+    SharedPreferences.setMockInitialValues({'update:ruchonggithub/dsh-Go:latest': jsonEncode(manifest())});
     final c = container();
     final control = c.read(appUpdateProvider.notifier);
     expect(await control.autoCheckIfDue(), isTrue);
@@ -162,7 +162,7 @@ void main() {
 
   test('OH bundle newer than feed removes stale cache without touching APK directory', () async {
     device = {'versionName': '1.3.0', 'versionCode': 100};
-    SharedPreferences.setMockInitialValues({'update_latest': jsonEncode(manifest())});
+    SharedPreferences.setMockInitialValues({'update:ruchonggithub/dsh-Go:latest': jsonEncode(manifest())});
     final marker = File('${dir.path}/unrelated.apk');
     await marker.writeAsString('owned by neither this OH prompt nor its feed');
     http.routes[feed] = (_, _) => textResponse(jsonEncode(manifest()));

@@ -17126,6 +17126,18 @@ abstract class L10n {
   /// **'关于 DSH Go'**
   String get hubAbout;
 
+  /// No description provided for @hubAboutForkRepository.
+  ///
+  /// In zh, this message translates to:
+  /// **'本版本的 GitHub 仓库'**
+  String get hubAboutForkRepository;
+
+  /// No description provided for @hubAboutForkDescription.
+  ///
+  /// In zh, this message translates to:
+  /// **'基于 DSH Go 的独立维护版。支持多个中继服务器和账号，默认仅连接远程主机；可在设置中开启本机 DSH。'**
+  String get hubAboutForkDescription;
+
   /// No description provided for @hubAboutAuthor.
   ///
   /// In zh, this message translates to:

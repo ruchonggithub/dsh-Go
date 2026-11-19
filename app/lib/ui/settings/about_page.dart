@@ -1,5 +1,5 @@
-// About DSH Go: app information, the original author and personal profiles,
-// then the brand mark, slogan and unofficial-app disclaimer.
+// About DSH Go: this fork's information, the original author and personal
+// profiles, and the unofficial-app disclaimer.
 
 import 'dart:async';
 
@@ -46,13 +46,24 @@ class AboutPage extends ConsumerWidget {
               value: Text(version, style: AppType.tabular(theme.textTheme.bodyMedium!)),
             ),
             const AppUpdateTiles(),
+            _externalLink(
+              context,
+              ref,
+              'about-project-repository',
+              AppInfo.repository,
+              AppInfo.repositoryUrl,
+              spot: Spots.forkRepository,
+            ),
             // 生产力模式 on: the star prompt is part of the play half.
             if (ref.watch(entertainmentEnabledProvider))
               SettingsTile(
                 key: const ValueKey('settings-star'),
                 spot: Spots.star,
                 onTap: () => unawaited(
-                  openStarProject(ProviderScope.containerOf(context, listen: false), ScaffoldMessenger.maybeOf(context)),
+                  openStarProject(
+                    ProviderScope.containerOf(context, listen: false),
+                    ScaffoldMessenger.maybeOf(context),
+                  ),
                 ),
               ),
             SettingsTile(
@@ -71,22 +82,29 @@ class AboutPage extends ConsumerWidget {
           title: l10n.hubAboutAuthor,
           children: [
             const SettingsTile(title: AppInfo.author),
-            _authorLink(
+            _externalLink(
               context,
               ref,
               'about-author-bilibili',
-              l10n.hubAboutBilibili,
               AppInfo.authorBilibiliName,
               AppInfo.authorBilibiliUrl,
+              title: l10n.hubAboutBilibili,
             ),
-            _authorLink(context, ref, 'about-author-x', l10n.hubAboutX, AppInfo.authorXHandle, AppInfo.authorXUrl),
-            _authorLink(
+            _externalLink(
+              context,
+              ref,
+              'about-author-x',
+              AppInfo.authorXHandle,
+              AppInfo.authorXUrl,
+              title: l10n.hubAboutX,
+            ),
+            _externalLink(
               context,
               ref,
               'about-author-github',
-              l10n.hubAboutGithub,
               '@${AppInfo.author}',
               AppInfo.authorGithubUrl,
+              title: l10n.hubAboutGithub,
             ),
           ],
         ),
@@ -97,7 +115,7 @@ class AboutPage extends ConsumerWidget {
               BrandMark(size: 18, color: colors.textDisabled),
               const SizedBox(height: 10),
               Text(
-                AppInfo.slogan,
+                l10n.hubAboutForkDescription,
                 textAlign: TextAlign.center,
                 style: theme.textTheme.labelSmall?.copyWith(color: colors.textTertiary),
               ),
@@ -114,19 +132,27 @@ class AboutPage extends ConsumerWidget {
     );
   }
 
-  Widget _authorLink(BuildContext context, WidgetRef ref, String key, String title, String handle, String url) =>
-      Semantics(
-        link: true,
-        child: SettingsTile(
-          key: ValueKey(key),
-          title: title,
-          subtitle: handle,
-          trailing: Icon(AppIcons.openExternal, size: 18, color: DshColors.of(context).textTertiary),
-          onTap: () => unawaited(_openAuthorLink(context, ref, Uri.parse(url))),
-        ),
-      );
+  Widget _externalLink(
+    BuildContext context,
+    WidgetRef ref,
+    String key,
+    String handle,
+    String url, {
+    String? title,
+    SettingSpot? spot,
+  }) => Semantics(
+    link: true,
+    child: SettingsTile(
+      key: ValueKey(key),
+      title: title,
+      spot: spot,
+      subtitle: handle,
+      trailing: Icon(AppIcons.openExternal, size: 18, color: DshColors.of(context).textTertiary),
+      onTap: () => unawaited(_openExternalLink(context, ref, Uri.parse(url))),
+    ),
+  );
 
-  Future<void> _openAuthorLink(BuildContext context, WidgetRef ref, Uri url) async {
+  Future<void> _openExternalLink(BuildContext context, WidgetRef ref, Uri url) async {
     final l10n = context.l10n;
     final messenger = ScaffoldMessenger.maybeOf(context);
     try {
